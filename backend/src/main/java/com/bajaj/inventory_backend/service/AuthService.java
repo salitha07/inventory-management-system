@@ -69,4 +69,19 @@ public class AuthService {
                 userResponse
         );
     }
+    @Transactional(readOnly = true)
+public AuthenticatedUserResponse getCurrentUser(String email) {
+
+    User user = userRepository.findByEmail(email)
+            .orElseThrow(() ->
+                    new IllegalArgumentException("User not found"));
+
+    return new AuthenticatedUserResponse(
+            user.getId(),
+            user.getFullName(),
+            user.getEmail(),
+            user.getRole().getName().name(),
+            user.isActive()
+    );
+}
 }
