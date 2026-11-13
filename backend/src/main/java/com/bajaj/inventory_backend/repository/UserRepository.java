@@ -1,5 +1,6 @@
 package com.bajaj.inventory_backend.repository;
 
+import com.bajaj.inventory_backend.entity.RoleName;
 import com.bajaj.inventory_backend.entity.User;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,4 +13,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
+    boolean existsByRole_Name(RoleName roleName);
 }
