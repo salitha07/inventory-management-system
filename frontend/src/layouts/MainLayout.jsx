@@ -1,21 +1,40 @@
-import { Outlet, Link } from "react-router-dom";
+import { Outlet, Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/useAuth";
 
 function MainLayout() {
-  return (
-    <div>
-      <header>
-        <h2>Bajaj Inventory</h2>
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
 
-        <nav>
-          <Link to="/">Dashboard</Link>
-        </nav>
-      </header>
+    const handleLogout = () => {
+        logout();
+        navigate("/login");
+    };
 
-      <main>
-        <Outlet />
-      </main>
-    </div>
-  );
+    return (
+        <div>
+            <header>
+                <h2>Bajaj Inventory Management System</h2>
+
+                <nav>
+                    <Link to="/">Dashboard</Link>
+                </nav>
+
+                <div>
+                    <p>{user?.fullName}</p>
+                    <p>{user?.email}</p>
+                    <p>Role: {user?.role}</p>
+
+                    <button onClick={handleLogout}>
+                        Logout
+                    </button>
+                </div>
+            </header>
+
+            <main>
+                <Outlet />
+            </main>
+        </div>
+    );
 }
 
 export default MainLayout;
