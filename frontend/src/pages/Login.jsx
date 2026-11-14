@@ -1,32 +1,80 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/useAuth";
+import api from "../services/api";
+
 function Login() {
-  return (
-    <div>
-      <h1>Bajaj Inventory Management System</h1>
-      <h2>Sign In</h2>
+    const navigate = useNavigate();
+    const { login } = useAuth();
 
-      <form>
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        setError("");
+        setLoading(true);
+
+        try {
+            const response = await api.post("/auth/login", {
+                email,
+                password
+            });
+
+            const data = response.data;
+
+            login(data.accessToken, data.user);
+
+            navigate("/");
+        } catch (err) {
+            setError(
+                err.response?.data?.message ||
+                "Login failed. Please check your email and password."
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
         <div>
-          <label>Email</label>
-          <input
-            type="email"
-            placeholder="Enter your email"
-            required
-          />
-        </div>
+            <h1>Bajaj Inventory Management System</h1>
+            <h2>Sign In</h2>
 
-        <div>
-          <label>Password</label>
-          <input
-            type="password"
-            placeholder="Enter your password"
-            required
-          />
-        </div>
+            <form onSubmit={handleSubmit}>
+                <div>
+                    <label>Email</label>
+                    <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Enter your email"
+                        required
+                    />
+                </div>
 
-        <button type="submit">Sign In</button>
-      </form>
-    </div>
-  );
+                <div>
+                    <label>Password</label>
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter your password"
+                        required
+                    />
+                </div>
+
+                {error && <p style={{ color: "red" }}>{error}</p>}
+
+                <button type="submit" disabled={loading}>
+                    {loading ? "Signing in..." : "Sign In"}
+                </button>
+            </form>
+        </div>
+    );
 }
 
 export default Login;
