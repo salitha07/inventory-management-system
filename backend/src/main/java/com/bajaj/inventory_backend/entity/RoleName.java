@@ -1,5 +1,8 @@
 package com.bajaj.inventory_backend.entity;
 
-public class RoleName {
-
+public enum RoleName {
+    ADMIN,
+    MANAGER,
+    CASHIER,
+    INVENTORY_STAFF
 }
