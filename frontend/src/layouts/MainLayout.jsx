@@ -6,8 +6,11 @@ function MainLayout() {
       <header>
         <h2>Bajaj Inventory</h2>
 
-        <nav>
+        <nav style={{ display: "flex", gap: "16px" }}>
           <Link to="/">Dashboard</Link>
+          <Link to="/sales">Sales</Link>
+          <Link to="/sales/pos">POS</Link>
+          <Link to="/sales/history">History</Link>
         </nav>
       </header>
 
