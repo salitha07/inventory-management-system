@@ -1,38 +1,77 @@
-import { Outlet, Link, useNavigate } from "react-router-dom";
+import { Outlet, NavLink } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import "./MainLayout.css";
 
 function MainLayout() {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
-
-    const handleLogout = () => {
-        logout();
-        navigate("/login");
-    };
+    const { user } = useAuth();
 
     return (
-        <div>
-            <header>
-                <h2>Bajaj Inventory Management System</h2>
+        <div className="main-layout">
 
-                <nav>
-                    <Link to="/">Dashboard</Link>
+            {/* APPLICATION HEADER */}
+
+            <header className="app-header">
+
+                {/* BRANDING */}
+
+                <div className="app-brand">
+                    <div className="app-brand-icon">
+                        ➤
+                    </div>
+
+                    <div className="app-brand-text">
+                        <h2>BAJAJ</h2>
+                        <span>Inventory Management System</span>
+                    </div>
+                </div>
+
+                {/* NAVIGATION */}
+
+                <nav className="app-navigation">
+
+                    <NavLink
+                        to="/"
+                        end
+                        className={({ isActive }) =>
+                            isActive ? "nav-link active" : "nav-link"
+                        }
+                    >
+                        <span>▦</span>
+                        Dashboard
+                    </NavLink>
+
+                    {["ADMIN", "MANAGER"].includes(user?.role) && (
+                        <NavLink
+                            to="/users"
+                            className={({ isActive }) =>
+                                isActive ? "nav-link active" : "nav-link"
+                            }
+                        >
+                            <span>👥</span>
+                            User Management
+                        </NavLink>
+                    )}
+
                 </nav>
 
-                <div>
-                    <p>{user?.fullName}</p>
-                    <p>{user?.email}</p>
-                    <p>Role: {user?.role}</p>
+                {/* USER ROLE */}
 
-                    <button onClick={handleLogout}>
-                        Logout
-                    </button>
+                <div className="header-user">
+                    <span className="header-user-indicator"></span>
+
+                    <span>
+                        {user?.role?.replace("_", " ")}
+                    </span>
                 </div>
+
             </header>
 
-            <main>
+            {/* PAGE CONTENT */}
+
+            <main className="app-content">
                 <Outlet />
             </main>
+
         </div>
     );
 }

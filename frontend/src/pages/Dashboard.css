@@ -1,0 +1,278 @@
+/* MAIN DASHBOARD */
+
+.dashboard {
+    min-height: 100vh;
+    padding: 35px 45px;
+    background: #f4f7ff;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #10234c;
+}
+
+/* DASHBOARD HEADER */
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 25px;
+
+    padding: 35px 40px;
+    margin-bottom: 40px;
+
+    background: linear-gradient(
+        120deg,
+        #06285f,
+        #0756bd,
+        #1685ee
+    );
+
+    border-radius: 16px;
+    color: white;
+
+    box-shadow: 0 10px 30px rgba(8, 70, 150, 0.15);
+}
+
+.welcome-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #8bd1ff;
+}
+
+.welcome-content h1 {
+    font-size: 32px;
+    margin: 12px 0;
+    color: white;
+}
+
+.welcome-content p {
+    color: #d5eaff;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.user-role-badge {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 6px 14px;
+
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+
+    border-radius: 20px;
+
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+/* LOGOUT BUTTON */
+
+.dashboard-logout-button {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+
+    padding: 12px 22px;
+
+    background: white;
+    color: #dc2626;
+
+    border: none;
+    border-radius: 8px;
+
+    font-size: 14px;
+    font-weight: 700;
+
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+}
+
+.dashboard-logout-button:hover {
+    background: #fee2e2;
+    transform: translateY(-2px);
+}
+
+.dashboard-logout-button span {
+    font-size: 19px;
+}
+
+/* SECTION HEADING */
+
+.dashboard-section {
+    margin-bottom: 40px;
+}
+
+.section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.section-heading h2 {
+    font-size: 24px;
+    color: #10234c;
+    margin-bottom: 8px;
+}
+
+.section-heading p {
+    color: #64769a;
+    font-size: 14px;
+}
+
+.module-count {
+    background: #e5efff;
+    color: #0866ed;
+
+    padding: 9px 16px;
+    border-radius: 20px;
+
+    font-size: 13px;
+    font-weight: 700;
+}
+
+/* MODULE GRID */
+
+.module-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+}
+
+/* MODULE CARDS */
+
+.module-card {
+    display: block;
+
+    min-height: 205px;
+    padding: 25px;
+
+    background: white;
+
+    border: 1px solid #e1e9f5;
+    border-radius: 13px;
+
+    box-shadow: 0 4px 15px rgba(25, 65, 130, 0.05);
+
+    text-decoration: none;
+    color: inherit;
+
+    transition: 0.25s ease;
+}
+
+.module-card:not(.module-disabled):hover {
+    transform: translateY(-5px);
+
+    border-color: #0866ed;
+
+    box-shadow: 0 12px 25px rgba(8, 102, 237, 0.12);
+}
+
+.module-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.module-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    width: 55px;
+    height: 55px;
+
+    background: #edf4ff;
+    border-radius: 12px;
+
+    font-size: 29px;
+}
+
+.module-arrow {
+    font-size: 23px;
+    color: #9aabc5;
+
+    transition: 0.2s;
+}
+
+.module-card:hover .module-arrow {
+    color: #0866ed;
+    transform: translateX(4px);
+}
+
+.module-card h3 {
+    font-size: 19px;
+    color: #10234c;
+    margin-bottom: 10px;
+}
+
+.module-card p {
+    font-size: 14px;
+    color: #64769a;
+    line-height: 1.6;
+    margin-bottom: 15px;
+}
+
+.module-card-link {
+    color: #0866ed;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.module-disabled .module-card-link {
+    color: #94a3b8;
+}
+
+/* FOOTER */
+
+.dashboard-footer {
+    border-top: 1px solid #dce5f2;
+    padding-top: 20px;
+    margin-top: 45px;
+    text-align: center;
+}
+
+.dashboard-footer p {
+    font-size: 13px;
+    color: #8291ad;
+}
+
+/* RESPONSIVE DESIGN */
+
+@media (max-width: 1000px) {
+    .module-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dashboard {
+        padding: 25px;
+    }
+}
+
+@media (max-width: 650px) {
+    .dashboard {
+        padding: 18px;
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 25px;
+    }
+
+    .welcome-content h1 {
+        font-size: 25px;
+    }
+
+    .module-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .section-heading {
+        align-items: flex-start;
+        gap: 15px;
+    }
+}

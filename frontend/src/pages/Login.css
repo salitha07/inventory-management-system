@@ -350,4 +350,8 @@
     .login-options {
         font-size: 12px;
     }
+}.brand-subtitle {
+    font-size: 1rem;
+    color: #ffffff;
+    font-weight: 500;
 }
