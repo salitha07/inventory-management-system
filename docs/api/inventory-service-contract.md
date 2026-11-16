@@ -269,3 +269,44 @@ No production policy/store adapter is supplied. PostgreSQL row locks, caller tra
 rollback, real principal verification, return-source validation, initialization, history/search,
 idempotency and V6 remain pending. Product/Sales contracts and the dedicated storage direction
 remain provisional. No no-op success implementation or startup dependency was added.
+
+## Unwired PostgreSQL JDBC adapter follow-up
+
+Implemented `inventory/persistence/jdbc/PostgresAtomicStockStore.java` against the existing
+AtomicStockStore port and draft SQL columns. It has no component annotations, bean registration,
+startup SQL or JPA mappings. No migration was activated; no local database was accessed.
+
+Constructor inputs are JdbcTemplate and TransactionTemplate. A private template copies the
+supplied transaction settings/manager, then enforces REQUIRED and write mode without mutating
+the caller's template. Wiring must use the SAME DataSource and a transaction manager compatible
+with caller JPA/Sales (normally the existing compatible JpaTransactionManager). A separately
+created JDBC transaction manager cannot promise atomicity with Sales. This compatibility is
+an integration responsibility, not inferred or established by the constructor.
+
+Within execute: reject a current read-only transaction; validate Product existence using a
+parameterized products lookup with FOR KEY SHARE; lock inventory_stock quantity FOR UPDATE;
+invoke planner once; reject null/mismatched/inconsistent plans using checked arithmetic;
+update exactly one stock row; insert all movement attributes and map PostgreSQL RETURNING
+columns into StockMovementView before transaction completion. Missing Product and missing
+stock have distinct Inventory-local StockPersistenceException reasons. No missing row is
+initialized implicitly. reference_type is limited to the draft's 64 characters; existing DTO
+validation enforces nonblank reason/reference and actor/ID invariants. Nullable manual
+reference IDs remain supported; TIMESTAMPTZ parameters use UTC OffsetDateTime.
+
+Product key-share locking protects identity against deletion/key changes; it does NOT freeze
+Product.active. An approved active-status policy and lock order remain necessary. Multiple
+Products must be processed in a consistent order by caller orchestration. Runtime SQL,
+planner and mapping errors propagate through TransactionTemplate to request rollback; outer
+transaction results are provisional until caller commit. Commit failures propagate and can
+have ambiguous outcomes: no automatic retries or claimed rollback after an unknown commit.
+
+The new database-free adapter tests use mocked JdbcTemplate/transaction manager plus real
+TransactionTemplate. They check protocol, parameters, result mapping, planner sequencing,
+validation, rollback requests, read-only handling and error propagation. They do NOT prove
+real PostgreSQL locking, commit, rollback or multi-process concurrency. Those require an
+isolated PostgreSQL schema and separate authorized integration tests.
+
+Remaining dependencies: Product/V2 availability, approved V6/storage choice and activation,
+explicit initialization/backfill, trusted actor/return policy adapters, source eligibility
+locking, Sales enum/signature compatibility, shared transaction-manager wiring and request
+idempotency. Do not register this adapter until prerequisites and integration tests are ready.
