@@ -1,8 +1,19 @@
 
 package com.bajaj.inventory_backend.purchase;
 
+import com.bajaj.inventory_backend.purchase.dto.CreatePurchaseRequest;
+import com.bajaj.inventory_backend.purchase.dto.PurchaseItemRequest;
+import com.bajaj.inventory_backend.purchase.dto.PurchaseItemResponse;
+import com.bajaj.inventory_backend.purchase.dto.PurchaseResponse;
+
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class PurchaseService {
@@ -13,13 +24,113 @@ public class PurchaseService {
         this.purchaseRepository = purchaseRepository;
     }
 
-    public List<Purchase> getAllPurchases() {
-        return purchaseRepository.findAll();
+    @Transactional(readOnly = true)
+    public List<PurchaseResponse> getAllPurchases() {
+        return purchaseRepository.findAll()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
-    public Purchase getPurchaseById(Long id) {
-        return purchaseRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Purchase not found: " + id));
+    @Transactional(readOnly = true)
+    public PurchaseResponse getPurchaseById(Long id) {
+        Purchase purchase = purchaseRepository.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Purchase not found: " + id));
+
+        return mapToResponse(purchase);
+    }
+
+    @Transactional
+    public PurchaseResponse createPurchase(
+            CreatePurchaseRequest request,
+            Long createdBy
+    ) {
+
+        Purchase purchase = new Purchase();
+
+        purchase.setPurchaseNumber(
+                "PUR-" + UUID.randomUUID()
+                        .toString()
+                        .substring(0, 8)
+                        .toUpperCase()
+        );
+
+        purchase.setSupplierId(request.supplierId());
+        purchase.setSupplierInvoiceNumber(
+                request.supplierInvoiceNumber()
+        );
+        purchase.setPurchaseDate(request.purchaseDate());
+        purchase.setStatus(PurchaseStatus.DRAFT);
+        purchase.setCreatedBy(createdBy);
+
+        BigDecimal subtotal = BigDecimal.ZERO;
+        List<PurchaseItem> items = new ArrayList<>();
+
+        for (PurchaseItemRequest itemRequest : request.items()) {
+
+            BigDecimal lineTotal =
+                    itemRequest.unitCost().multiply(
+                            BigDecimal.valueOf(itemRequest.quantity())
+                    );
+
+            PurchaseItem item = new PurchaseItem();
+
+            item.setPurchase(purchase);
+            item.setProductId(itemRequest.productId());
+            item.setQuantity(itemRequest.quantity());
+            item.setUnitCost(itemRequest.unitCost());
+            item.setLineTotal(lineTotal);
+
+            items.add(item);
+            subtotal = subtotal.add(lineTotal);
+        }
+
+        BigDecimal discount = request.discount();
+
+        if (discount.compareTo(subtotal) > 0) {
+            throw new IllegalArgumentException(
+                    "Discount cannot exceed subtotal"
+            );
+        }
+
+        purchase.setSubtotal(subtotal);
+        purchase.setDiscount(discount);
+        purchase.setTotal(subtotal.subtract(discount));
+        purchase.setItems(items);
+
+        Purchase savedPurchase = purchaseRepository.save(purchase);
+
+        return mapToResponse(savedPurchase);
+    }
+
+    private PurchaseResponse mapToResponse(Purchase purchase) {
+
+        List<PurchaseItemResponse> itemResponses =
+                purchase.getItems()
+                        .stream()
+                        .map(item -> new PurchaseItemResponse(
+                                item.getId(),
+                                item.getProductId(),
+                                item.getQuantity(),
+                                item.getUnitCost(),
+                                item.getLineTotal()
+                        ))
+                        .toList();
+
+        return new PurchaseResponse(
+                purchase.getId(),
+                purchase.getPurchaseNumber(),
+                purchase.getSupplierId(),
+                purchase.getSupplierInvoiceNumber(),
+                purchase.getPurchaseDate(),
+                purchase.getStatus().name(),
+                purchase.getSubtotal(),
+                purchase.getDiscount(),
+                purchase.getTotal(),
+                purchase.getCreatedBy(),
+                itemResponses
+        );
     }
 }
