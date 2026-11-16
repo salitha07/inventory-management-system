@@ -27,7 +27,7 @@ Reference paths:
 | Four canonical movement types | MovementKind enum with sign/arithmetic invariants |
 | Product, delta, after, reference, reason, creator | InventoryContracts records; MovementContext.actor is AuthenticatedActor(userId) |
 | Receive/deduct/return/manual adjustment | InventoryOperations methods and database-free operation tests |
-| Current stock/Product/low-stock/history contracts | Compiling InventoryQueries declarations using existing query/view/PageQuery DTOs |
+| Current stock/Product/low-stock/history contracts | InventoryQueries contract and implemented, unwired PostgresInventoryQueries JDBC adapter using existing DTOs |
 | Negative-stock prevention | Core validation and candidate SQL constraints |
 | Exclusive Inventory balance writes | Inventory-owned combined persistence port and documented ownership |
 | Transactional balance/ledger writes, overselling prevention | Unwired JDBC adapter implements REQUIRED transaction and row locking; real PostgreSQL guarantees unverified |
@@ -36,9 +36,10 @@ Reference paths:
 | Compiling skeleton and tests | Java 21 compile passed after corrections; 33 passed, eight opt-in ITs skipped |
 | Submit PR | Pending user review and separate authorization; no commit/push/PR action in this task |
 
-No REST endpoints, React screens, query execution or new persistence implementation are
-required by this skeleton correction. The JDBC adapter stays unwired and introduces no
-startup SQL or missing-table Hibernate mappings. Existing mutation logic is unchanged.
+Current stock search, Product/low-stock filtering and movement history have JDBC implementations.
+PostgresStockInitializer also implements explicit stock initialization. All JDBC components
+remain unwired and introduce no startup SQL or missing-table Hibernate mappings. No REST
+endpoints or React screens are provided. Real PostgreSQL behavior remains unverified.
 
 ## Query contract and missing-stock semantics
 
@@ -50,7 +51,9 @@ Search returns initialized balances only; it does not invent missing quantities.
 no missing-status or lowStock field. Low stock is quantity <= configured reorderLevel;
 null means no configured threshold, excluded from lowStockOnly rather than treated as zero.
 History uses StockMovementQuery filters and stable createdAt/movementId descending order.
-All methods are read-only declarations with no implementation or bean registration.
+PostgresInventoryQueries implements the interface using parameterized JDBC SQL and has no
+bean registration. Count and content queries may observe concurrent changes unless the caller
+provides a suitable snapshot transaction. Existing tests do not directly verify these queries.
 
 ## Storage direction and V6 candidate
 
@@ -70,9 +73,12 @@ The candidate preserves the reviewed tables, restrictive FKs, canonical type/sig
 nonnegative balance/threshold checks and history/reference indexes. Generic reference IDs
 cannot share one FK across multiple source tables. The balance PK guarantees at most one
 row per Product; it does not automatically initialize all Products. No opening stock/backfill
-is guessed. Proposed future initialization is a synchronous Inventory call after Product
-persistence in the same transaction, inserting zero/null threshold with conflict-safe handling
-without resetting existing data. Nonzero opening stock requires an attributed approved process.
+is guessed. PostgresStockInitializer.initializeStock(Long) is implemented with Product
+existence validation and ON CONFLICT (product_id) DO NOTHING, inserting zero/null threshold
+without resetting existing quantity, reorder level or updated_at. It distinguishes INITIALIZED,
+ALREADY_INITIALIZED and missing Product. It remains unwired and PostgreSQL-unverified.
+The future Product lifecycle call must follow persistence/flush in the same compatible
+transaction. Nonzero opening stock requires an attributed approved process.
 
 ## Integrity implementation boundaries
 
@@ -85,14 +91,18 @@ locking does not freeze active status. Actor value objects do not authenticate p
 OperationPolicy requires a trusted production adapter. Return source eligibility/quantity
 must be checked under an agreed transaction/locking policy.
 
-Database privileges, append-only enforcement, initialization, idempotency and query repositories
-are not implemented. They are integration considerations, not extra features added in this task.
+Database privileges, append-only enforcement and idempotency are not implemented. Query and
+initializer JDBC implementations exist, but schema activation, lifecycle calls and production
+wiring remain integration work. Ordinary mutations still reject missing stock rows; they do
+not silently initialize them. Trusted authentication and Returns approval/restockability
+integration remain pending through OperationPolicy.
 Do not infer idempotency from a reference pair or automatically retry ambiguous commits.
 
 The eight opt-in PostgreSQL tests use minimal identity fixtures and dedicated database/schema
 guards with restrictive cleanup. They have not been executed. They do not establish production
 migration fidelity or JPA/Sales transaction compatibility. Existing database-free reports show
-33 passing tests and eight skipped ITs; final Java 21 compile/tests passed after this correction with those same counts.
+33 passing tests and eight skipped ITs. Java 21 compilation of the query adapter and initializer
+also passed with those existing test counts; neither component has direct behavior-test coverage.
 
 ## Remaining coordination and submission
 
@@ -105,7 +115,8 @@ migration fidelity or JPA/Sales transaction compatibility. Existing database-fre
   optional Inventory dependency, unit-cost owner and seeded Product IDs need integration work.
 - Sales migration V5_1 still depends on its missing base Sales migration in the inspected ref.
 
-Suggested message: Member 6's Phase 01 core, unwired JDBC adapter, query declarations and V6
+Suggested message: Member 6's Phase 01 core, unwired JDBC mutation/query adapters, explicit
+stock initializer and V6
 submission candidate are ready for review. Please approve shared storage/lifecycle and service
 compatibility before production wiring or migration activation. Real PostgreSQL verification
 remains pending; this is not a fully integrated application feature.
