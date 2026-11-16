@@ -1,12 +1,17 @@
 
 package com.bajaj.inventory_backend.purchase;
 
+import com.bajaj.inventory_backend.entity.User;
+import com.bajaj.inventory_backend.repository.UserRepository;
 import com.bajaj.inventory_backend.purchase.dto.CreatePurchaseRequest;
 import com.bajaj.inventory_backend.purchase.dto.PurchaseResponse;
 
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,9 +21,14 @@ import java.util.List;
 public class PurchaseController {
 
     private final PurchaseService purchaseService;
+    private final UserRepository userRepository;
 
-    public PurchaseController(PurchaseService purchaseService) {
+    public PurchaseController(
+            PurchaseService purchaseService,
+            UserRepository userRepository
+    ) {
         this.purchaseService = purchaseService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
@@ -35,13 +45,28 @@ public class PurchaseController {
     @ResponseStatus(HttpStatus.CREATED)
     public PurchaseResponse createPurchase(
             @Valid @RequestBody CreatePurchaseRequest request,
-            org.springframework.security.core.Authentication authentication
+            Authentication authentication
     ) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Authentication required"
+            );
+        }
 
-        // Authentication integration must provide the database user ID.
-        // Replace this after confirming Member 1's security principal.
-        throw new UnsupportedOperationException(
-                "Purchase creation requires authenticated user ID integration"
+        String email = authentication.getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Authenticated user not found"
+                ));
+
+        return purchaseService.createPurchase(
+                request,
+                user.getId()
         );
     }
 }
