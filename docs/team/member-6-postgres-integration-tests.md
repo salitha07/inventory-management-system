@@ -46,11 +46,24 @@ is under src/test/resources/inventory, outside Flyway paths, with minimal produc
 identity tables and balance/movement constraints copied from the inactive draft. It does not
 claim full Product/User schema fidelity. No teammate entity is copied.
 
-Cleanup drops only the validated random schema successfully created by this test, after
-worker termination. It never drops public/shared schemas or existing application tables.
+Cleanup runs only for the validated random schema successfully created by this test, after
+worker termination. It explicitly drops schema-qualified stock_movements, inventory_stock,
+products and users, in that order, each with DROP TABLE IF EXISTS ... RESTRICT. Movement
+foreign keys reference products/users; stock references products, so children are removed
+before parents. IF EXISTS tolerates tables absent after incomplete fixture setup. The
+movement table's owned identity sequence is removed automatically with its owning table.
+Finally DROP SCHEMA ... RESTRICT requires the schema to be empty. No cascading drop is used.
+
+An unexpected dependency stops cleanup immediately; unknown remaining schema objects make
+the final schema drop fail. Errors propagate with the generated schema name for manual
+investigation. Earlier restrictive drops may already have completed; cleanup is not an
+all-or-nothing transaction. Cleanup never expands into public/shared objects to resolve
+dependencies. No automatic wildcard discovery or deletion is performed.
 Lock and statement timeouts bound worker operations. If the process is killed or cleanup
 fails, the owned schema may remain; inspect and remove that exact test schema manually in
 inventory_m6_test after verifying ownership. Do not use broad wildcard cleanup commands.
+Connection establishment and administrative schema creation/cleanup timeout coverage remain
+incomplete; the scoped connection timeouts do not bound all phases of the harness.
 
 ## Coverage and interpretation
 
@@ -59,6 +72,8 @@ fixture-approved returns and manual correction, forced movement-insert rollback,
 rollback, concurrent independent deductions, distinct missing-Product/stock errors, and
 constraints/rejected operations without history. Two concurrent workers request four each
 from five units: exactly one must commit, leaving one unit and one movement.
+The start barrier does not guarantee deterministic overlap or lock contention; a passing
+run is not a deterministic demonstration that one worker waited on the other's row lock.
 
 The tests use a test-only JDBC transaction manager, correctly coordinating only their own
 DataSource. Passing them would not establish atomicity with the application's eventual JPA

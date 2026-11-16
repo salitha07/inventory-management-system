@@ -56,10 +56,25 @@ class PostgresAtomicStockStoreIT {
     @AfterEach void cleanUp() {
         if (schemaCreated && workersStopped) {
             Member6PostgresSafety.validateSchema(schema);
-            // Only this randomly generated schema created by this test is eligible for deletion.
-            new JdbcTemplate(admin).execute("DROP SCHEMA " + schema + " CASCADE");
+            try {
+                dropFixtures(new JdbcTemplate(admin), schema);
+            } catch (RuntimeException ex) {
+                throw new IllegalStateException("Restrictive cleanup failed for owned test schema " + schema
+                        + "; inspect remaining fixtures manually. No cascading cleanup attempted.", ex);
+            }
             schemaCreated = false;
         }
+    }
+
+    /** Known fixture objects only; IF EXISTS tolerates incomplete fixture creation. */
+    static void dropFixtures(JdbcTemplate cleanup, String schema) {
+        Member6PostgresSafety.validateSchema(schema);
+        // Children first: movements references products/users; stock references products.
+        for (String table : new String[] {"stock_movements", "inventory_stock", "products", "users"}) {
+            cleanup.execute("DROP TABLE IF EXISTS " + schema + "." + table + " RESTRICT");
+        }
+        // Unknown objects or external dependencies must fail, never expand the deletion scope.
+        cleanup.execute("DROP SCHEMA " + schema + " RESTRICT");
     }
 
     private MovementContext context(String type, Long actor) {
