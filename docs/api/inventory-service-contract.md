@@ -1,312 +1,144 @@
-﻿# Inventory internal service contract
+# Inventory internal service contract — Phase 01
 
-**DRAFT — PROPOSED contracts only; not approved, compiled or implemented.**
+The Java skeleton and mutation core are implemented under com.bajaj.inventory_backend.
+Shared Product/Sales integration and the stock-storage architecture remain pending team
+approval. The JDBC adapter is implemented but UNWIRED. No Inventory REST endpoints,
+query implementations or frontend screens are provided. PostgreSQL integration tests
+exist but have not been executed; database rollback/concurrency are not proven.
 
-Prepared 2026-11-16 for Member 6 Phase 01. See the
-[team/dependency draft](../team/member-6-inventory-phase-01.md) for verified snapshots,
-storage alternatives, V6 outline and coordination questions. All signatures, DTO names,
-defaults and policies below are PROPOSED or TBD unless identified as assignment requirements
-or verified teammate code. No Java interface or HTTP endpoint is created by this document.
+## Required movement vocabulary and metadata
 
-## Required movement vocabulary and data
+MovementKind defines PURCHASE_RECEIVE, SALE_DEDUCT, CUSTOMER_RETURN and MANUAL_ADJUSTMENT.
+Receive/return add positive quantities, sale deducts, manual adjustment accepts a signed
+nonzero delta. Checked arithmetic rejects overflow and negative resulting balances.
 
-| Required type | Intended balance effect |
+Existing InventoryContracts records define:
+
+| Data | Actual representation |
 | --- | --- |
-| PURCHASE_RECEIVE | Positive change for received purchases |
-| SALE_DEDUCT | Negative change for completed sale deductions |
-| CUSTOMER_RETURN | Positive change for returned items accepted back into stock |
-| MANUAL_ADJUSTMENT | Positive or negative correction; resulting balance never negative |
+| Product | Long productId, matching Member 2 products.id BIGINT |
+| Quantity change / after | Signed int quantityChange and nonnegative int quantityAfter |
+| Reference | MovementContext.referenceType String and referenceId Long |
+| Reason | MovementContext.reason, nonblank |
+| Created by | MovementContext.actor: AuthenticatedActor(Long userId) |
+| Ledger identity/time | StockMovementView.movementId and createdAt Instant |
 
-Required movement data: Product, quantity change, quantity after movement, reference
-type, reference ID, reason and created by. PROPOSED representation:
+AuthenticatedActor is a value object, not proof of authentication. Trusted orchestration
+must verify the principal/permissions through OperationPolicy. Business references are
+required positive IDs for receipt/sale/return; manual referenceId can be null. Reference
+vocabulary, source-document validation and actor integration require team agreement.
 
-| Attribute | Proposed representation / rules |
-| --- | --- |
-| product | Long productId, referencing Member 2's products.id |
-| quantityChange | Signed Integer; never zero; computed from operation, not blindly accepted |
-| quantityAfter | Integer >= 0; computed from authoritative locked/atomically updated balance |
-| referenceType | String from an agreed vocabulary; PURCHASE/SALE/CUSTOMER_RETURN/MANUAL are examples, not approved values |
-| referenceId | Long business-document ID; manual reference policy TBD |
-| reason | Nonblank String PROPOSED for every write; maximum length TBD |
-| createdBy | Long trusted user ID referencing users.id; actor sourcing TBD with Member 1 |
+## Implemented mutation operations
 
-PROPOSED supporting attributes: generated movementId and Instant createdAt. Store the
-required movement names as strings. Never accept client-supplied quantityAfter or timestamps
-as authoritative. Previous quantity and reference number from Sales documentation are TBD,
-not requirements adopted here. Product/user deletion and historical retention policy are TBD.
-
-## Proposed mutation signatures
-
-The following is illustrative contract notation, not an additional interface. Parameter and
-result types require team approval. Commands intentionally choose the movement kind through
-the operation, avoiding an arbitrary caller-supplied kind with contradictory sign.
+InventoryOperations is a plain Java object with these actual methods:
 
 ```java
-StockMovementResult receiveStock(StockChangeCommand command);
-StockMovementResult deductStock(StockChangeCommand command);
-StockMovementResult returnStock(StockChangeCommand command);
-StockMovementResult manualAdjustment(ManualAdjustmentCommand command);
+StockMovementView receiveStock(StockChangeCommand command);
+StockMovementView deductStock(StockChangeCommand command);
+StockMovementView returnStock(StockChangeCommand command);
+StockMovementView manualAdjustment(ManualAdjustmentCommand command);
 ```
 
-PROPOSED StockChangeCommand fields: `Long productId`, `Integer quantity` (> 0),
-`MovementContext context`. The service converts positive input into the appropriate signed
-delta. receiveStock means purchase receipt; deductStock means sale deduction; returnStock
-means customer return accepted into stock. Other business cases require explicit agreement.
+StockChangeCommand contains productId, positive Integer quantity and MovementContext.
+ManualAdjustmentCommand contains productId, signed nonzero Integer quantityChange and
+MovementContext. Return eligibility is delegated to requireApprovedRestockableReturn;
+production approval/restockability/remaining-return-quantity verification is not implemented.
 
-PROPOSED ManualAdjustmentCommand fields: `Long productId`, `Integer quantityChange`
-(signed, nonzero), `MovementContext context`. A signed delta is proposed rather than a
-target quantity; this remains TBD. A reason is mandatory under this proposal.
+## Compiling read-only query declarations
 
-PROPOSED MovementContext fields: `String referenceType`, `Long referenceId`, `String reason`,
-`Long actorUserId`. Actor ID must be supplied only by trusted internal orchestration after
-authorization; HTTP clients must not choose it. Alternative: resolve actor from authenticated
-context inside Inventory. Background-job/system actors and principal/actor mismatch behavior
-remain TBD. Do not silently invent an actor when context is absent.
-
-PROPOSED StockMovementResult contains movement ID, product ID, movement type, signed delta,
-quantity after, reference type/id, reason, created-by ID and creation instant.
-
-For each command: reject null IDs/quantities, invalid sign, overflow, invalid metadata,
-missing Product and insufficient stock before committing any change. Inactive Product handling
-is TBD: a return might need different rules from a sale. Business source-document validation
-and prevention of excessive returns/duplicate receipts must be allocated to the caller or
-Inventory explicitly; this draft does not claim those checks exist.
-
-PROPOSED error outcomes: validation failure, Product not found, insufficient stock, invalid
-actor, and concurrency/lock failure. Exact exception types and HTTP mappings are TBD.
-Reuse/reconcile Sales's shared exception proposals; do not create duplicate classes.
-
-## Proposed read/query signatures
+InventoryQueries declares these methods using existing DTOs and Spring Data Page results:
 
 ```java
 CurrentStockView getCurrentStock(Long productId);
-Page<CurrentStockView> searchCurrentStock(CurrentStockQuery query, Pageable page);
-Page<StockMovementView> searchStockMovements(StockMovementQuery query, Pageable page);
+Page<CurrentStockView> searchCurrentStock(Long productId, CurrentStockQuery query, PageQuery page);
+Page<StockMovementView> searchStockMovements(StockMovementQuery query, PageQuery page);
 ```
 
-`Page`/`Pageable` refer to Spring Data concepts for this proposal; whether public internal
-contracts expose them directly or use module-owned page DTOs is TBD.
+These are declarations only. No repository queries or HTTP routes are implemented.
 
-PROPOSED CurrentStockQuery:
+- getCurrentStock requires a positive ID. Missing Product and STOCK_NOT_INITIALIZED are
+  distinct failures; known zero quantity is a valid initialized balance. Exception mapping
+  remains an integration decision.
+- searchCurrentStock accepts an optional exact Product ID separately because CurrentStockQuery
+  has no productId field. Its existing text/categoryId/active/lowStockOnly filters are retained.
+  Text matches productCode/productName case-insensitively; null active means no activity filter.
+- Low stock is quantity <= reorderLevel, including equality and 0/0. Null reorderLevel means
+  no configured threshold and is excluded from lowStockOnly. Never coalesce it to zero.
+- CurrentStockView contains productId, productCode, productName, categoryId, active, quantity
+  and nullable reorderLevel. It has NO lowStock or initialization-status field. Derive low-stock
+  status only for a configured threshold. Search returns initialized rows only; missing stock
+  is never fabricated as zero. Detail lookup provides explicit missing/uninitialized errors.
+- PageQuery is zero-based with size 1..100. Stock ordering is productCode ASC, productId ASC.
+- StockMovementQuery supports productId, movementType, referenceType/id, createdBy and optional
+  inclusive-from/exclusive-to instants. History order is createdAt DESC, movementId DESC.
+  An empty history does not establish Product existence or balance initialization.
 
-- Optional text: case-insensitive Product code/name substring search.
-- Optional categoryId and active filter; default active-only is PROPOSED.
-- Optional lowStockOnly flag: `quantity <= reorderLevel` is the current PROPOSED rule.
-- Reorder null/default behavior and Products without a balance row are TBD; do not silently
-  present missing persistence as zero without an approved initialization policy.
-- Stable default sort by productCode then productId, zero-based pages, proposed size 20/max 100.
+## Persistence port and implemented unwired JDBC adapter
 
-PROPOSED CurrentStockView: productId, productCode, productName, categoryId, active,
-quantity, reorderLevel and lowStock. Quantity/reorder types and storage await Member 2.
+InventoryPorts.AtomicStockStore.apply(productId, planner) is one combined balance/ledger
+boundary. MovementWrite is a validated plan, not persisted success. The adapter validates
+Product identity, locks an existing stock row FOR UPDATE, invokes the planner once and
+validates Product/delta/result consistency, updates exactly one balance row and inserts all
+movement metadata using RETURNING. reference_type is limited to the candidate's 64 characters.
 
-PROPOSED StockMovementQuery: optional productId, movementType, referenceType,
-referenceId, createdBy, from and to timestamps. Time range is proposed as inclusive-from,
-exclusive-to in UTC instants. Default ordering: createdAt descending then movementId
-descending; page defaults as above. StockMovementView contains the required movement
-attributes and supporting ID/time. Authorization and visibility of actor information are TBD.
+PostgresAtomicStockStore receives JdbcTemplate and TransactionTemplate, creates no DataSource
+or manager and has no component/bean registration. Its private template uses the supplied
+manager with REQUIRED/write settings without modifying the supplied template. It rejects an
+existing read-only transaction. Errors propagate through the transaction boundary; results
+inside a caller transaction remain provisional until caller commit. Commit outcome may be
+ambiguous, so automatic retry is not implemented.
 
-These reads are snapshots only. A successful availability query does not reserve stock or
-guarantee that a subsequent deduction succeeds. No HTTP paths or React changes are approved.
+Eventual wiring must use the same DataSource and a manager compatible with caller JPA/Sales.
+A separate JDBC manager would not guarantee atomicity with Sales. Multiple Product locks need
+consistent ordering. Product FOR KEY SHARE protects identity, not Product.active. Production
+policy and source-return locking remain unresolved. No in-memory lock provides cross-process
+safety; existing mocks verify protocol, not PostgreSQL rollback or overselling prevention.
 
-## Comparison with Member 5's verified interface
+Only Inventory may write quantities or stock movement rows. Database privilege enforcement,
+append-only ledger enforcement, initialization and idempotency are not implemented here.
 
-Source: local `origin/feature/sales-management` at 2f6832d,
-`backend/src/main/java/com/bajaj/inventory_backend/inventory/service/InventoryService.java`.
+## Single V6 submission candidate — UNAPPROVED / UNVERIFIED
 
-| Existing declaration | Relationship to this proposal / decision |
+[Executable SQL candidate](../migrations/V6__create_inventory_stock_and_stock_movements.sql)
+is the single maintained schema definition. The old .sql.draft is only a superseded pointer.
+The candidate is outside active db/migration and has not been executed or validated against
+PostgreSQL. It requires existing V1 users and Member 2 V2 products before activation.
+
+PROPOSED storage: inventory_stock is the sole balance keyed by product_id, with nonnegative
+quantity, nullable nonnegative reorder_level and updated_at. stock_movements contains all
+required metadata, canonical type/sign checks, nonnegative after/valid prior-balance checks,
+restrictive Product/user FKs and history/reference indexes. At most one balance is enforced;
+initialization/backfill must be separately coordinated. No automatic opening-stock insert is
+included. Do not rewrite applied V2 or activate V6 on the current V1-only branch.
+
+## Sales compatibility and remaining dependencies
+
+Reference Sales snapshot 2f6832d proposes inventory.service.InventoryService and
+inventory.entity.StockMovementType (SALE/RETURN/ADJUSTMENT/PURCHASE). Member 6 has not created
+competing classes at those paths. Its current InventoryOperations and InventoryQueries are
+Inventory-owned contracts awaiting integration agreement.
+
+| Sales declaration | Coordination needed |
 | --- | --- |
-| boolean isStockAvailable(Long, Integer) | Could remain a convenience read; never a reservation. Retention TBD |
-| Integer getAvailableStock(Long) | Could project getCurrentStock.quantity; missing/inactive policy TBD |
-| void validateStockAvailability(Long, Integer) | Could remain fail-fast validation; authoritative validation must still occur during mutation |
-| void deductStock(Long, Integer, StockMovementType, Long) | Existing Sales caller depends on it; command proposal is incompatible without coordinated caller changes or an approved adapter |
-| BigDecimal getCurrentUnitCost(Long) | Outside stock mutation core; owner/source TBD with Members 2/5; Product.costPrice is only a candidate |
-| void restoreStock(Long, Integer, StockMovementType, Long) | Proposal separates customer return; sale void semantics and adapter retention TBD |
-| receiveStock / manualAdjustment | No equivalent declared in existing interface |
+| isStockAvailable(Long,Integer), getAvailableStock(Long), validateStockAvailability(Long,Integer) | Availability is not reservation; agree read mapping |
+| void deductStock(Long,Integer,StockMovementType,Long) | Reconcile canonical types and command metadata/result |
+| void restoreStock(Long,Integer,StockMovementType,Long) | Distinguish customer return from sale void |
+| BigDecimal getCurrentUnitCost(Long) | Agree owner/source with Member 2; costPrice is a candidate |
 
-Existing enum path: `backend/src/main/java/com/bajaj/inventory_backend/inventory/entity/StockMovementType.java`.
+Four-argument calls lack explicit reason/referenceType/actor. Sales's optional Inventory
+injection can bypass stock operations; production integration must address that. No adapter
+or silent metadata defaults are introduced. Sales's seeded catalogue must map to real IDs.
 
-| Existing name | Required candidate replacement — mapping PROPOSED |
-| --- | --- |
-| PURCHASE | PURCHASE_RECEIVE |
-| SALE | SALE_DEDUCT |
-| RETURN | CUSTOMER_RETURN; only if the event is genuinely a customer return |
-| ADJUSTMENT | MANUAL_ADJUSTMENT; only for manual corrections |
+Member 1: version/activation, shared errors, principal/permissions and integration order.
+Member 2: dedicated balance/threshold ownership, Product initialization, opening data and
+active-state policy. Member 5: canonical vocabulary, service compatibility, caller transaction
+sharing and return/void semantics. Request idempotency remains unimplemented; generic business
+reference pairs cannot safely be assumed unique for partial/multi-line operations.
 
-Do not blindly classify sale voiding as CUSTOMER_RETURN. Four-argument mutation methods
-cannot explicitly carry reason, reference type and actor; any adapter must define trusted
-metadata sourcing without fabricating it. Return type changes also require coordination.
-Keep one canonical interface and enum; no duplicate interfaces or legacy aliases are approved.
+## Verification scope
 
-SalesService currently calls `deductStock(productId, quantity, SALE, saleId)` after saving
-the sale, reads unit cost, and performs a preliminary availability check. It sorts deductions
-by Product ID and uses REQUIRED/READ_COMMITTED transactions. Inventory injection is optional
-and checkout skips stock operations when absent; Member 5 must resolve this before integration.
-The seeded Product catalogue must also be replaced/mapped to real database IDs.
-
-Sales's `docs/SALES_INVENTORY_INTEGRATION.md` proposes quantity/previous_quantity/new_quantity,
-reference_number and actor metadata. Field naming and extra attributes require explicit
-reconciliation with quantityChange/quantityAfter/referenceType/reason in this draft.
-
-## Integrity requirements and proposed mechanism
-
-Required invariants: only Inventory changes balances; balances never become negative;
-balance and movement commit or roll back together; concurrent checkouts cannot oversell.
-These are requirements, not functionality established by this draft.
-
-PROPOSED write sequence:
-
-1. Enter a write transaction joining the caller transaction when present (REQUIRED is proposed).
-2. Resolve trusted actor, Product and reference metadata; validate the command.
-3. Acquire an agreed database write lock on the authoritative balance row, or use a
-   conditional atomic update with correct affected-row checking and after-balance retrieval.
-4. Validate current balance, sign and arithmetic bounds; update exactly one balance.
-5. Append the matching immutable movement with the actual resulting quantity.
-6. Commit both together; propagate failures so the caller's sale/purchase also rolls back.
-
-Do not use an independent REQUIRES_NEW stock transaction. READ_COMMITTED alone does not
-prevent read-check-write races. A pessimistic row lock is a PROPOSED simple strategy;
-optimistic versioning with bounded whole-transaction retry is an alternative, not selected.
-Application-local Java locks do not protect multiple application instances.
-
-PROPOSED database nonnegative constraints provide a second line of defense. All balance
-writers must use the same strategy. Multi-Product operations acquire locks in ascending
-Product ID order. Initial balance-row creation needs its own uniqueness/race strategy if
-balances are separate. Lock timeouts/deadlocks must fail safely; retry policy is TBD.
-
-Movement writes are append-only through Inventory. Other modules must not save modified
-Product quantities, directly update balance tables or create ledger rows. This is a team
-ownership rule; database privilege enforcement is a separate TBD decision.
-
-Retry/idempotency policy is TBD: do not add a unique `(referenceType, referenceId)` constraint
-that would incorrectly prohibit legitimate multi-line or partial events. Agree an operation/
-line identity before claiming duplicate-request protection.
-
-## Review gates and validation — PROPOSED
-
-Approval gates: Member 1 package/security/phase scope and V6; Member 2 storage and lifecycle;
-Member 5 single interface, enum, transaction and return/void behavior. The storage choice is
-**PENDING MEMBER 2 / TEAM APPROVAL**. See the companion draft for schema alternatives.
-
-When implementation is authorized, verify positive/negative movement semantics, invalid
-inputs, exact depletion, insufficient stock, actor/reference metadata, overflow, rollback
-on movement-save failure, caller rollback, initial-row races and concurrent PostgreSQL
-checkouts in independent transactions. Also verify query boundaries, deterministic history
-ordering, migration compatibility and Hibernate validation. In-memory Sales mocks do not
-prove database locks or rollback. No tests or migrations were run for this documentation task.
-
-
-## Persistence addendum — PROPOSED / NOT APPROVED
-
-This addendum narrows the earlier TBD query/storage policies without approving shared
-architecture. **PENDING MEMBER 2 / TEAM APPROVAL**: inventory_stock is the sole balance,
-keyed by products.id, with quantity, nullable reorder_level and updated_at. Product has no
-second balance. See the [team design](../team/member-6-inventory-phase-01.md) for lifecycle,
-concurrency and activation gates, and the [inactive V6 draft](../migrations/V6__create_inventory_stock_and_stock_movements.sql.draft).
-
-Initializer signature TBD: synchronously create zero/null stock after Product persistence
-inside the caller transaction, using conflict-safe insert and never overwriting existing rows.
-Normal mutations reject uninitialized stock, separately from missing Product or insufficient
-stock. Zero initialization is not a movement; nonzero opening stock requires an attributed
-approved adjustment/import process. Active Product races require Member 2 locking agreement.
-
-Low stock is PROPOSED as quantity <= configured reorderLevel, including equality and 0/0.
-Null threshold means unknown/unconfigured and is excluded from low-stock filtering. Missing
-stock means STOCK_NOT_INITIALIZED, not zero. Detail reads error explicitly; search left-joins
-to identify missing rows separately. CurrentStockView cannot represent missing quantity or
-explicit status, so approved response adaptation remains deferred; Java is unchanged here.
-
-PROPOSED writes lock stock rows FOR UPDATE in ascending Product order, validate current
-quantity/overflow, update quantity/updated_at and insert the exact signed movement in one
-REQUIRED transaction. Return inside an outer transaction does not imply durable commit.
-Any failure rolls back caller records and both inventory writes. Conditional update with
-RETURNING is an alternative, not selected. PostgreSQL row locks, not preliminary reads,
-provide serialization. Timeout/deadlock retry and ambiguous commit behavior require approval.
-
-createdBy references users.id resolved by trusted authenticated orchestration; the existing
-AuthenticatedActor value object does not prove authentication. Threshold edits require an
-agreed permission/audit policy; they must not fabricate quantity movements. Restrictive FKs
-preserve Product/user history. SQL checks do not enforce ledger continuity, balance equality,
-append-only permissions, source-document validation or authorization by themselves.
-
-Request idempotency remains an activation gate: agree an operation/line key, payload-match
-validation and atomic result replay before implementing deduplication schema or retries.
-Generic reference pairs/triples are not unique because partial and multi-line events are valid.
-No duplicate-request safety is claimed by this draft or current foundation.
-
-Sales conflict remains explicit: SALE/RETURN/ADJUSTMENT/PURCHASE names, four-argument void
-mutations, restoreStock including voids, absent reason/referenceType/actor parameters, optional
-Inventory injection and undecided cost source. No shared interface, adapter or enum replacement
-is introduced. No persistence behavior described here has been implemented or exercised.
-
-## Implemented database-independent core follow-up
-
-`inventory/core/InventoryOperations.java` now implements receiveStock, deductStock,
-returnStock and signed manualAdjustment using the existing validated commands and MovementKind.
-This is a plain Java object, not a Spring bean or Member 5's shared InventoryService.
-`inventory/core/InventoryPorts.java` owns two provisional internal ports:
-
-- AtomicStockStore loads an existing protected balance and invokes a pure write planner,
-  then atomically persists the resulting balance and movement. A combined port deliberately
-  prevents the core from sequencing independent repository commits. Failures must propagate
-  and roll back both writes; a joined outer transaction must be marked rollback-only.
-- OperationPolicy verifies trusted actor identity/authorization and approved, restockable
-  customer-return eligibility/quantity. Implementations must throw on rejection. Source-return
-  eligibility must be serialized in the same transaction when concurrent returns are possible.
-
-MovementWrite is an immutable validated plan without a generated movement ID; only the store
-returns a persisted StockMovementView. The core uses injected Clock, preserves metadata,
-rejects insufficient stock/negative balances/overflow and creates no state changes itself.
-Reference vocabularies remain team-owned: nonblank type and required positive business IDs
-are validated, but no unapproved PURCHASE/SALE/RETURN string enum is imposed.
-
-The test-only store stages all changes until successful completion. Eight new operation tests
-plus five foundation tests passed under Java 21 Maven; full main-source compilation passed.
-Tests cover operations, metadata, eligibility, actor rejection, missing stock, invalid input,
-overflow, exact depletion and simulated balance/movement/commit failure without partial writes.
-They prove core behavior against the port contract, not actual database atomicity or locking.
-
-No production policy/store adapter is supplied. PostgreSQL row locks, caller transaction
-rollback, real principal verification, return-source validation, initialization, history/search,
-idempotency and V6 remain pending. Product/Sales contracts and the dedicated storage direction
-remain provisional. No no-op success implementation or startup dependency was added.
-
-## Unwired PostgreSQL JDBC adapter follow-up
-
-Implemented `inventory/persistence/jdbc/PostgresAtomicStockStore.java` against the existing
-AtomicStockStore port and draft SQL columns. It has no component annotations, bean registration,
-startup SQL or JPA mappings. No migration was activated; no local database was accessed.
-
-Constructor inputs are JdbcTemplate and TransactionTemplate. A private template copies the
-supplied transaction settings/manager, then enforces REQUIRED and write mode without mutating
-the caller's template. Wiring must use the SAME DataSource and a transaction manager compatible
-with caller JPA/Sales (normally the existing compatible JpaTransactionManager). A separately
-created JDBC transaction manager cannot promise atomicity with Sales. This compatibility is
-an integration responsibility, not inferred or established by the constructor.
-
-Within execute: reject a current read-only transaction; validate Product existence using a
-parameterized products lookup with FOR KEY SHARE; lock inventory_stock quantity FOR UPDATE;
-invoke planner once; reject null/mismatched/inconsistent plans using checked arithmetic;
-update exactly one stock row; insert all movement attributes and map PostgreSQL RETURNING
-columns into StockMovementView before transaction completion. Missing Product and missing
-stock have distinct Inventory-local StockPersistenceException reasons. No missing row is
-initialized implicitly. reference_type is limited to the draft's 64 characters; existing DTO
-validation enforces nonblank reason/reference and actor/ID invariants. Nullable manual
-reference IDs remain supported; TIMESTAMPTZ parameters use UTC OffsetDateTime.
-
-Product key-share locking protects identity against deletion/key changes; it does NOT freeze
-Product.active. An approved active-status policy and lock order remain necessary. Multiple
-Products must be processed in a consistent order by caller orchestration. Runtime SQL,
-planner and mapping errors propagate through TransactionTemplate to request rollback; outer
-transaction results are provisional until caller commit. Commit failures propagate and can
-have ambiguous outcomes: no automatic retries or claimed rollback after an unknown commit.
-
-The new database-free adapter tests use mocked JdbcTemplate/transaction manager plus real
-TransactionTemplate. They check protocol, parameters, result mapping, planner sequencing,
-validation, rollback requests, read-only handling and error propagation. They do NOT prove
-real PostgreSQL locking, commit, rollback or multi-process concurrency. Those require an
-isolated PostgreSQL schema and separate authorized integration tests.
-
-Remaining dependencies: Product/V2 availability, approved V6/storage choice and activation,
-explicit initialization/backfill, trusted actor/return policy adapters, source eligibility
-locking, Sales enum/signature compatibility, shared transaction-manager wiring and request
-idempotency. Do not register this adapter until prerequisites and integration tests are ready.
+Existing evidence: Java 21 Maven compilation succeeded; 33 database-free Inventory tests
+passed and eight opt-in PostgreSQL tests were skipped. The tests cover core invariants,
+metadata, adapter protocol/failure handling and restrictive test cleanup. Final verification after the query declaration change passed with the same counts. No real PostgreSQL tests, production migration checks
+or JPA/Sales transaction integration have been executed. Query declarations are compile-checked,
+not behavior-tested implementations. Test setup is documented separately in the team harness guide.
