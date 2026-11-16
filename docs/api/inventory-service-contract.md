@@ -237,3 +237,35 @@ Sales conflict remains explicit: SALE/RETURN/ADJUSTMENT/PURCHASE names, four-arg
 mutations, restoreStock including voids, absent reason/referenceType/actor parameters, optional
 Inventory injection and undecided cost source. No shared interface, adapter or enum replacement
 is introduced. No persistence behavior described here has been implemented or exercised.
+
+## Implemented database-independent core follow-up
+
+`inventory/core/InventoryOperations.java` now implements receiveStock, deductStock,
+returnStock and signed manualAdjustment using the existing validated commands and MovementKind.
+This is a plain Java object, not a Spring bean or Member 5's shared InventoryService.
+`inventory/core/InventoryPorts.java` owns two provisional internal ports:
+
+- AtomicStockStore loads an existing protected balance and invokes a pure write planner,
+  then atomically persists the resulting balance and movement. A combined port deliberately
+  prevents the core from sequencing independent repository commits. Failures must propagate
+  and roll back both writes; a joined outer transaction must be marked rollback-only.
+- OperationPolicy verifies trusted actor identity/authorization and approved, restockable
+  customer-return eligibility/quantity. Implementations must throw on rejection. Source-return
+  eligibility must be serialized in the same transaction when concurrent returns are possible.
+
+MovementWrite is an immutable validated plan without a generated movement ID; only the store
+returns a persisted StockMovementView. The core uses injected Clock, preserves metadata,
+rejects insufficient stock/negative balances/overflow and creates no state changes itself.
+Reference vocabularies remain team-owned: nonblank type and required positive business IDs
+are validated, but no unapproved PURCHASE/SALE/RETURN string enum is imposed.
+
+The test-only store stages all changes until successful completion. Eight new operation tests
+plus five foundation tests passed under Java 21 Maven; full main-source compilation passed.
+Tests cover operations, metadata, eligibility, actor rejection, missing stock, invalid input,
+overflow, exact depletion and simulated balance/movement/commit failure without partial writes.
+They prove core behavior against the port contract, not actual database atomicity or locking.
+
+No production policy/store adapter is supplied. PostgreSQL row locks, caller transaction
+rollback, real principal verification, return-source validation, initialization, history/search,
+idempotency and V6 remain pending. Product/Sales contracts and the dedicated storage direction
+remain provisional. No no-op success implementation or startup dependency was added.
