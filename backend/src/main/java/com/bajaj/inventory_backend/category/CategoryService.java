@@ -5,6 +5,8 @@ import com.bajaj.inventory_backend.dto.category.CategoryRequestDTO;
 import com.bajaj.inventory_backend.dto.category.CategoryResponseDTO;
 import com.bajaj.inventory_backend.repository.CategoryRepository;
 import com.bajaj.inventory_backend.repository.ProductRepository;
+import com.bajaj.inventory_backend.common.exception.DuplicateResourceException;
+import com.bajaj.inventory_backend.common.exception.ResourceNotFoundException;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -42,8 +44,9 @@ public class CategoryService {
         String categoryName = request.getCategoryName().trim();
 
         if (categoryRepository.existsByCategoryNameIgnoreCase(categoryName)) {
-            throw new IllegalArgumentException(
-                    "Category name already exists");
+            throw new DuplicateResourceException(
+                    "Category name already exists: " + categoryName
+            );
         }
 
         Category category = new Category();
@@ -66,8 +69,9 @@ public class CategoryService {
 
         if (categoryRepository.existsByCategoryNameIgnoreCaseAndIdNot(
                 categoryName, id)) {
-            throw new IllegalArgumentException(
-                    "Category name already exists");
+            throw new DuplicateResourceException(
+                    "Category name already exists: " + categoryName
+            );
         }
 
         category.setCategoryName(categoryName);
@@ -100,9 +104,9 @@ public class CategoryService {
 
     private Category findCategoryById(Long id) {
         return categoryRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Category not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    "Category not found with ID: " + id
+                ));
     }
 
     private CategoryResponseDTO convertToResponseDTO(Category category) {

@@ -1,6 +1,7 @@
 
 package com.bajaj.inventory_backend.category;
 
+import com.bajaj.inventory_backend.common.response.ApiResponse;
 import com.bajaj.inventory_backend.dto.category.CategoryRequestDTO;
 import com.bajaj.inventory_backend.dto.category.CategoryResponseDTO;
 import com.bajaj.inventory_backend.dto.category.CategoryStatusRequest;
@@ -29,9 +30,14 @@ public class CategoryController {
     // Get all categories with pagination
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'INVENTORY_STAFF')")
-    public ResponseEntity<Page<CategoryResponseDTO>> getAllCategories(
+    public ResponseEntity<ApiResponse<Page<CategoryResponseDTO>>> getAllCategories(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
+
+        if (page < 0 || size < 1 || size > 100) {
+            throw new IllegalArgumentException(
+                    "Invalid pagination values");
+        }
 
         Pageable pageable = PageRequest.of(
                 page,
@@ -39,57 +45,86 @@ public class CategoryController {
                 Sort.by("categoryName").ascending()
         );
 
+        Page<CategoryResponseDTO> categories =
+                categoryService.getAllCategories(pageable);
+
         return ResponseEntity.ok(
-                categoryService.getAllCategories(pageable)
+                ApiResponse.success(
+                        "Categories retrieved successfully",
+                        categories
+                )
         );
     }
 
     // Get category by ID
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'INVENTORY_STAFF')")
-    public ResponseEntity<CategoryResponseDTO> getCategoryById(
+    public ResponseEntity<ApiResponse<CategoryResponseDTO>> getCategoryById(
             @PathVariable Long id) {
 
+        CategoryResponseDTO category =
+                categoryService.getCategoryById(id);
+
         return ResponseEntity.ok(
-                categoryService.getCategoryById(id)
+                ApiResponse.success(
+                        "Category retrieved successfully",
+                        category
+                )
         );
     }
 
     // Create category
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public ResponseEntity<CategoryResponseDTO> createCategory(
+    public ResponseEntity<ApiResponse<CategoryResponseDTO>> createCategory(
             @Valid @RequestBody CategoryRequestDTO request) {
 
-        CategoryResponseDTO response =
+        CategoryResponseDTO category =
                 categoryService.createCategory(request);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                ApiResponse.success(
+                        "Category created successfully",
+                        category
+                )
+        );
     }
 
     // Update category
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public ResponseEntity<CategoryResponseDTO> updateCategory(
+    public ResponseEntity<ApiResponse<CategoryResponseDTO>> updateCategory(
             @PathVariable Long id,
             @Valid @RequestBody CategoryRequestDTO request) {
 
+        CategoryResponseDTO category =
+                categoryService.updateCategory(id, request);
+
         return ResponseEntity.ok(
-                categoryService.updateCategory(id, request)
+                ApiResponse.success(
+                        "Category updated successfully",
+                        category
+                )
         );
     }
 
     // Activate or deactivate category
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public ResponseEntity<CategoryResponseDTO> updateCategoryStatus(
+    public ResponseEntity<ApiResponse<CategoryResponseDTO>> updateCategoryStatus(
             @PathVariable Long id,
             @Valid @RequestBody CategoryStatusRequest request) {
 
-        return ResponseEntity.ok(
+        CategoryResponseDTO category =
                 categoryService.updateCategoryStatus(
                         id,
                         request.getActive()
+                );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Category status updated successfully",
+                        category
                 )
         );
     }

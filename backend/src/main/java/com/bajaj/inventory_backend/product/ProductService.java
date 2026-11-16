@@ -6,6 +6,8 @@ import com.bajaj.inventory_backend.dto.product.ProductRequestDTO;
 import com.bajaj.inventory_backend.dto.product.ProductResponseDTO;
 import com.bajaj.inventory_backend.repository.CategoryRepository;
 import com.bajaj.inventory_backend.repository.ProductRepository;
+import com.bajaj.inventory_backend.common.exception.DuplicateResourceException;
+import com.bajaj.inventory_backend.common.exception.ResourceNotFoundException;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -75,8 +77,9 @@ public class ProductService {
         String productCode = request.getProductCode().trim();
 
         if (productRepository.existsByProductCodeIgnoreCase(productCode)) {
-            throw new IllegalArgumentException(
-                    "Product code already exists");
+            throw new DuplicateResourceException(
+                    "Product code already exists: " + productCode
+            );
         }
 
         Category category = findActiveCategory(request.getCategoryId());
@@ -105,8 +108,9 @@ public class ProductService {
 
         if (productRepository.existsByProductCodeIgnoreCaseAndIdNot(
                 productCode, id)) {
-            throw new IllegalArgumentException(
-                    "Product code already exists");
+            throw new DuplicateResourceException(
+                    "Product code already exists: " + productCode
+            );
         }
 
         Category category = findActiveCategory(request.getCategoryId());
@@ -138,16 +142,16 @@ public class ProductService {
 
     private Product findProductById(Long id) {
         return productRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Product not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Product not found with ID: " + id
+                ));
     }
 
     private Category findActiveCategory(Long categoryId) {
         return categoryRepository.findById(categoryId)
                 .filter(Category::isActive)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new ResourceNotFoundException(
                                 "Category not found or inactive with ID: "
                                         + categoryId));
     }

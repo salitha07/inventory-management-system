@@ -1,6 +1,7 @@
 
 package com.bajaj.inventory_backend.product;
 
+import com.bajaj.inventory_backend.common.response.ApiResponse;
 import com.bajaj.inventory_backend.dto.product.ProductRequestDTO;
 import com.bajaj.inventory_backend.dto.product.ProductResponseDTO;
 import com.bajaj.inventory_backend.dto.product.ProductStatusRequest;
@@ -29,7 +30,7 @@ public class ProductController {
     // Get products with search, filters, pagination and sorting
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'INVENTORY_STAFF')")
-    public ResponseEntity<Page<ProductResponseDTO>> getAllProducts(
+    public ResponseEntity<ApiResponse<Page<ProductResponseDTO>>> getAllProducts(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "true") Boolean active,
@@ -74,55 +75,83 @@ public class ProductController {
                 productService.getAllProducts(
                         search, categoryId, active, pageable);
 
-        return ResponseEntity.ok(products);
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Products retrieved successfully",
+                        products
+                )
+        );
     }
 
     // Get product by ID
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'INVENTORY_STAFF')")
-    public ResponseEntity<ProductResponseDTO> getProductById(
+    public ResponseEntity<ApiResponse<ProductResponseDTO>> getProductById(
             @PathVariable Long id) {
 
+        ProductResponseDTO product =
+                productService.getProductById(id);
+
         return ResponseEntity.ok(
-                productService.getProductById(id)
+                ApiResponse.success(
+                        "Product retrieved successfully",
+                        product
+                )
         );
     }
 
     // Create product
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'INVENTORY_STAFF')")
-    public ResponseEntity<ProductResponseDTO> createProduct(
+    public ResponseEntity<ApiResponse<ProductResponseDTO>> createProduct(
             @Valid @RequestBody ProductRequestDTO request) {
 
-        ProductResponseDTO response =
+        ProductResponseDTO product =
                 productService.createProduct(request);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                ApiResponse.success(
+                        "Product created successfully",
+                        product
+                )
+        );
     }
 
     // Update product
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'INVENTORY_STAFF')")
-    public ResponseEntity<ProductResponseDTO> updateProduct(
+    public ResponseEntity<ApiResponse<ProductResponseDTO>> updateProduct(
             @PathVariable Long id,
             @Valid @RequestBody ProductRequestDTO request) {
 
+        ProductResponseDTO product =
+                productService.updateProduct(id, request);
+
         return ResponseEntity.ok(
-                productService.updateProduct(id, request)
+                ApiResponse.success(
+                        "Product updated successfully",
+                        product
+                )
         );
     }
 
     // Activate or deactivate product
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public ResponseEntity<ProductResponseDTO> updateProductStatus(
+    public ResponseEntity<ApiResponse<ProductResponseDTO>> updateProductStatus(
             @PathVariable Long id,
             @Valid @RequestBody ProductStatusRequest request) {
 
-        return ResponseEntity.ok(
+        ProductResponseDTO product =
                 productService.updateProductStatus(
                         id,
                         request.getActive()
+                );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Product status updated successfully",
+                        product
                 )
         );
     }
