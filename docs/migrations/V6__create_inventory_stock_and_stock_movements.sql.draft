@@ -1,0 +1,4 @@
+﻿-- SUPERSEDED REVIEW POINTER ONLY — no schema definition is maintained here.
+-- The single executable, UNAPPROVED / UNVERIFIED submission candidate is:
+-- docs/migrations/V6__create_inventory_stock_and_stock_movements.sql
+-- It remains outside active Flyway locations. Do not execute or activate without team approval.
