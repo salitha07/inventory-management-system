@@ -7,17 +7,11 @@ function MainLayout() {
 
     return (
         <div className="main-layout">
-
-            {/* APPLICATION HEADER */}
-
             <header className="app-header">
 
                 {/* BRANDING */}
-
                 <div className="app-brand">
-                    <div className="app-brand-icon">
-                        ➤
-                    </div>
+                    <div className="app-brand-icon">➤</div>
 
                     <div className="app-brand-text">
                         <h2>BAJAJ</h2>
@@ -26,7 +20,6 @@ function MainLayout() {
                 </div>
 
                 {/* NAVIGATION */}
-
                 <nav className="app-navigation">
 
                     <NavLink
@@ -52,26 +45,50 @@ function MainLayout() {
                         </NavLink>
                     )}
 
+                    <NavLink
+                        to="/sales"
+                        className={({ isActive }) =>
+                            isActive ? "nav-link active" : "nav-link"
+                        }
+                    >
+                        <span>💰</span>
+                        Sales
+                    </NavLink>
+
+                    <NavLink
+                        to="/sales/pos"
+                        className={({ isActive }) =>
+                            isActive ? "nav-link active" : "nav-link"
+                        }
+                    >
+                        <span>🛒</span>
+                        POS
+                    </NavLink>
+
+                    <NavLink
+                        to="/sales/history"
+                        className={({ isActive }) =>
+                            isActive ? "nav-link active" : "nav-link"
+                        }
+                    >
+                        <span>📋</span>
+                        Sales History
+                    </NavLink>
+
                 </nav>
 
                 {/* USER ROLE */}
-
                 <div className="header-user">
                     <span className="header-user-indicator"></span>
-
-                    <span>
-                        {user?.role?.replace("_", " ")}
-                    </span>
+                    <span>{user?.role?.replace("_", " ")}</span>
                 </div>
 
             </header>
 
             {/* PAGE CONTENT */}
-
             <main className="app-content">
                 <Outlet />
             </main>
-
         </div>
     );
 }
