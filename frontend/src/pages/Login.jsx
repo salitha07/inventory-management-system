@@ -45,8 +45,6 @@ function Login() {
     return (
         <div className="login-page">
 
-            {/* LEFT BRAND SECTION */}
-
             <section className="login-brand">
 
                 <div className="brand-content">
@@ -61,8 +59,9 @@ function Login() {
                     <h1>
                         CHATHURANGA spare parts
                         <br />
-                        <text style={{ fontSize: "1.0rem",}}>
-                        Inventory & Sales</text>
+                        <span className="brand-subtitle">
+                            Inventory &amp; Sales
+                        </span>
                         <br />
                         <span>Management System</span>
                     </h1>
@@ -96,22 +95,16 @@ function Login() {
                     </div>
 
                     <div className="brand-bottom">
-
                         <div className="motorcycle-illustration">
                             🏍️
                         </div>
 
-                        <p>
-                            Your business, managed smarter.
-                        </p>
-
+                        <p>Your business, managed smarter.</p>
                     </div>
 
                 </div>
 
             </section>
-
-            {/* RIGHT LOGIN SECTION */}
 
             <section className="login-form-section">
 
@@ -215,15 +208,8 @@ function Login() {
                     </form>
 
                     <div className="login-footer">
-
-                        <p>
-                            Don't have an account?
-                        </p>
-
-                        <span>
-                            Contact Administrator
-                        </span>
-
+                        <p>Don't have an account?</p>
+                        <span>Contact Administrator</span>
                     </div>
 
                 </div>
