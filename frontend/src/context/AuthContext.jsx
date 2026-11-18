@@ -1,41 +1,59 @@
-import { createContext, useContext, useState } from "react";
-
-const AuthContext = createContext(null);
+import { useEffect, useState } from "react";
+import api from "../services/api";
+import AuthContext from "./authContext";
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(
-    () => localStorage.getItem("accessToken")
-  );
+    const [token, setToken] = useState(
+        () => localStorage.getItem("accessToken")
+    );
 
-  const [user, setUser] = useState(null);
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-  const login = (accessToken, userData) => {
-    localStorage.setItem("accessToken", accessToken);
-    setToken(accessToken);
-    setUser(userData);
-  };
+    useEffect(() => {
+        const restoreSession = async () => {
+            const savedToken = localStorage.getItem("accessToken");
 
-  const logout = () => {
-    localStorage.removeItem("accessToken");
-    setToken(null);
-    setUser(null);
-  };
+            if (!savedToken) {
+                setLoading(false);
+                return;
+            }
 
-  return (
-    <AuthContext.Provider
-      value={{
-        token,
-        user,
-        login,
-        logout,
-        isAuthenticated: Boolean(token),
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-}
+            try {
+                const response = await api.get("/auth/me");
+                setUser(response.data);
+                setToken(savedToken);
+            } catch {
+                localStorage.removeItem("accessToken");
+                setToken(null);
+                setUser(null);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-export function useAuth() {
-  return useContext(AuthContext);
+        restoreSession();
+    }, []);
+
+    const login = (accessToken, userData) => {
+        localStorage.setItem("accessToken", accessToken);
+        setToken(accessToken);
+        setUser(userData);
+    };
+
+    const logout = () => {
+        localStorage.removeItem("accessToken");
+        setToken(null);
+        setUser(null);
+    };
+
+    const isAuthenticated = Boolean(token && user);
+
+    return (
+        <AuthContext.Provider
+            value={{ token, user, loading, login, logout, isAuthenticated }}
+        >
+            {children}
+        </AuthContext.Provider>
+    );
 }

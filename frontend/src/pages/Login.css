@@ -1,0 +1,357 @@
+* {
+    box-sizing: border-box;
+}
+
+.login-page {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 45% 55%;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f7ff;
+}
+
+/* LEFT BRAND SECTION */
+
+.login-brand {
+    background: linear-gradient(145deg, #06285f, #0756bd, #1685ee);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 55px;
+    overflow: hidden;
+    position: relative;
+}
+
+.login-brand::before {
+    content: "";
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    top: -180px;
+    left: -150px;
+}
+
+.brand-content {
+    width: 100%;
+    max-width: 550px;
+    position: relative;
+    z-index: 1;
+}
+
+.bajaj-logo {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 35px;
+    font-weight: 800;
+    letter-spacing: 3px;
+}
+
+.bajaj-symbol {
+    font-size: 48px;
+}
+
+.brand-divider {
+    width: 220px;
+    height: 3px;
+    background: rgba(255,255,255,0.4);
+    margin: 25px 0;
+}
+
+.brand-content h1 {
+    font-size: 38px;
+    line-height: 1.25;
+    margin-bottom: 20px;
+}
+
+.brand-content h1 span {
+    color: #8bd1ff;
+}
+
+.brand-tagline {
+    font-size: 19px;
+    color: #d5eaff;
+    margin-bottom: 45px;
+}
+
+.brand-tagline span {
+    margin: 0 10px;
+    color: #73c3ff;
+}
+
+.brand-features {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.feature-card {
+    padding: 18px 8px;
+    text-align: center;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 12px;
+}
+
+.feature-card span {
+    font-size: 28px;
+}
+
+.feature-card p {
+    font-size: 13px;
+    margin-bottom: 0;
+    line-height: 1.5;
+}
+
+.brand-bottom {
+    margin-top: 65px;
+    text-align: center;
+}
+
+.motorcycle-illustration {
+    font-size: 100px;
+    margin-bottom: 10px;
+}
+
+.brand-bottom p {
+    font-size: 16px;
+    color: #d9eaff;
+}
+
+/* RIGHT LOGIN SECTION */
+
+.login-form-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 50px;
+}
+
+.login-card {
+    background: white;
+    width: 100%;
+    max-width: 560px;
+    padding: 50px;
+    border-radius: 20px;
+    box-shadow: 0 15px 50px rgba(25, 65, 130, 0.10);
+}
+
+.login-heading {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.login-heading h2 {
+    font-size: 38px;
+    color: #10234c;
+    margin-bottom: 10px;
+}
+
+.login-heading p {
+    color: #64769a;
+    font-size: 17px;
+}
+
+.heading-line {
+    width: 90px;
+    height: 5px;
+    border-radius: 10px;
+    background: #0866ed;
+    margin: 25px auto 0;
+}
+
+/* INPUT FIELDS */
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-group label {
+    display: block;
+    color: #24385d;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.input-wrapper {
+    height: 58px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #c9d8f4;
+    border-radius: 10px;
+    padding: 0 15px;
+    transition: 0.2s;
+}
+
+.input-wrapper:focus-within {
+    border-color: #0866ed;
+    box-shadow: 0 0 0 3px rgba(8,102,237,0.10);
+}
+
+.input-wrapper span {
+    color: #1264d9;
+    font-size: 20px;
+}
+
+.input-wrapper input {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    color: #172b50;
+    background: transparent;
+}
+
+.password-toggle {
+    background: transparent;
+    border: none;
+    color: #0866ed;
+    cursor: pointer;
+}
+
+/* OPTIONS */
+
+.login-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0 25px;
+    font-size: 14px;
+}
+
+.remember-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #34476b;
+}
+
+.remember-option input {
+    width: 16px;
+    height: 16px;
+    accent-color: #0866ed;
+}
+
+.login-options a {
+    color: #0866ed;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+/* BUTTON */
+
+.sign-in-button {
+    width: 100%;
+    height: 58px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #0866ed, #0754d5);
+    color: white;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.sign-in-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(8,102,237,0.25);
+}
+
+.sign-in-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.login-error {
+    padding: 12px;
+    margin-bottom: 20px;
+    background: #fff0f0;
+    border: 1px solid #ffcaca;
+    border-radius: 8px;
+    color: #c62828;
+    font-size: 14px;
+}
+
+/* FOOTER */
+
+.login-footer {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 35px;
+    font-size: 14px;
+}
+
+.login-footer p {
+    color: #64769a;
+    margin: 0;
+}
+
+.login-footer span {
+    color: #0866ed;
+    font-weight: 600;
+}
+
+.copyright {
+    margin-top: 30px;
+    text-align: center;
+    font-size: 13px;
+    color: #8291ad;
+}
+
+/* RESPONSIVE DESIGN */
+
+@media (max-width: 900px) {
+    .login-page {
+        grid-template-columns: 1fr;
+    }
+
+    .login-brand {
+        padding: 35px 25px;
+    }
+
+    .brand-content h1 {
+        font-size: 30px;
+    }
+
+    .brand-bottom {
+        margin-top: 30px;
+    }
+
+    .motorcycle-illustration {
+        font-size: 65px;
+    }
+
+    .login-form-section {
+        padding: 35px 20px;
+    }
+}
+
+@media (max-width: 500px) {
+    .login-card {
+        padding: 30px 22px;
+    }
+
+    .login-heading h2 {
+        font-size: 30px;
+    }
+
+    .brand-features {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .login-options {
+        font-size: 12px;
+    }
+}.brand-subtitle {
+    font-size: 1rem;
+    color: #ffffff;
+    font-weight: 500;
+}
