@@ -1,4 +1,3 @@
-
 package com.bajaj.inventory_backend.controller;
 
 import com.bajaj.inventory_backend.dashboard.DashboardService;
@@ -14,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/dashboard")
+@RequestMapping("/api/v1/dashboard")
 public class DashboardController {
 
     private final DashboardService dashboardService;
@@ -37,7 +36,7 @@ public class DashboardController {
         );
     }
 
-    @GetMapping("/recent-activities")
+    @GetMapping("/recent-activity")
     public ResponseEntity<List<RecentActivityResponse>> getRecentActivities() {
         return ResponseEntity.ok(
                 dashboardService.getRecentActivities()

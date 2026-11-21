@@ -1,4 +1,3 @@
-
 package com.bajaj.inventory_backend.dto.dashboard;
 
 import java.math.BigDecimal;
@@ -9,14 +8,14 @@ public class DashboardSummaryResponse {
     private BigDecimal monthlySales;
     private BigDecimal purchaseSummary;
     private long totalProducts;
-    private long lowStockCount;
+    private Long lowStockCount;
 
     public DashboardSummaryResponse(
             BigDecimal todaySales,
             BigDecimal monthlySales,
             BigDecimal purchaseSummary,
             long totalProducts,
-            long lowStockCount) {
+            Long lowStockCount) {
 
         this.todaySales = todaySales;
         this.monthlySales = monthlySales;
@@ -41,7 +40,7 @@ public class DashboardSummaryResponse {
         return totalProducts;
     }
 
-    public long getLowStockCount() {
+    public Long getLowStockCount() {
         return lowStockCount;
     }
 }
