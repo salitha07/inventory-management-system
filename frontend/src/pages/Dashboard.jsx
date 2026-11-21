@@ -1,63 +1,191 @@
-
+﻿import { useEffect, useState } from "react";
 import "./Dashboard.css";
+import {
+  getDashboardSummary,
+  getLowStockAlerts,
+  getRecentActivity,
+} from "../services/dashboardService";
 
-const summaryCards = [
-  {
-    title: "Today's Sales",
-    value: "—",
-    description: "Sales recorded today",
-    icon: "↗",
-    color: "blue",
-  },
-  {
-    title: "Monthly Sales",
-    value: "—",
-    description: "Sales for this month",
-    icon: "▤",
-    color: "purple",
-  },
-  {
-    title: "Purchase Summary",
-    value: "—",
-    description: "Purchases this month",
-    icon: "▣",
-    color: "orange",
-  },
-  {
-    title: "Total Products",
-    value: "—",
-    description: "Products in inventory",
-    icon: "▦",
-    color: "green",
-  },
-  {
-    title: "Low Stock Items",
-    value: "—",
-    description: "Products requiring attention",
-    icon: "!",
-    color: "red",
-  },
-];
+const initialSummary = {
+  todaySales: null,
+  monthlySales: null,
+  purchaseSummary: null,
+  totalProducts: null,
+  lowStockCount: null,
+};
 
-const activitySections = [
-  {
-    title: "Recent Sales",
-    subtitle: "Latest sales transactions",
-    icon: "↗",
-  },
-  {
-    title: "Recent Purchases",
-    subtitle: "Latest purchase records",
-    icon: "▣",
-  },
-  {
-    title: "Stock Movements",
-    subtitle: "Latest inventory movements",
-    icon: "⇄",
-  },
-];
+const formatCurrency = (value) => {
+  if (value === null || value === undefined) return "—";
+
+  return `Rs. ${Number(value).toLocaleString("en-LK", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+const formatDate = (value) => {
+  if (!value) return "—";
+
+  return new Date(value).toLocaleString("en-LK", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+};
 
 function Dashboard() {
+  const [summary, setSummary] = useState(initialSummary);
+  const [recentSales, setRecentSales] = useState([]);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState("");
+  const [activityError, setActivityError] = useState("");
+  const [lowStockUnavailable, setLowStockUnavailable] = useState(false);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const data = await getDashboardSummary();
+        setSummary(data);
+      } catch (error) {
+        console.error("Dashboard summary error:", error);
+        setSummaryError("Unable to load dashboard summary.");
+      } finally {
+        setSummaryLoading(false);
+      }
+
+      try {
+        const activities = await getRecentActivity();
+        setRecentSales(Array.isArray(activities) ? activities : []);
+      } catch (error) {
+        console.error("Recent activity error:", error);
+        setActivityError("Unable to load recent sales.");
+      } finally {
+        setActivityLoading(false);
+      }
+
+      try {
+        await getLowStockAlerts();
+      } catch (error) {
+        console.error("Low-stock alerts unavailable:", error);
+        setLowStockUnavailable(true);
+      }
+    };
+
+    loadDashboard();
+  }, []);
+
+  const summaryCards = [
+    {
+      title: "Today's Sales",
+      value: formatCurrency(summary.todaySales),
+      description: "Sales recorded today",
+      icon: "$",
+      color: "blue",
+    },
+    {
+      title: "Monthly Sales",
+      value: formatCurrency(summary.monthlySales),
+      description: "Sales for this month",
+      icon: "M",
+      color: "purple",
+    },
+    {
+      title: "Purchase Summary",
+      value: formatCurrency(summary.purchaseSummary),
+      description: "Purchases this month",
+      icon: "P",
+      color: "orange",
+    },
+    {
+      title: "Total Products",
+      value:
+        summary.totalProducts === null
+          ? "—"
+          : summary.totalProducts.toLocaleString(),
+      description: "Products in inventory",
+      icon: "T",
+      color: "green",
+    },
+    {
+      title: "Low Stock Items",
+      value:
+        summary.lowStockCount === null
+          ? "—"
+          : summary.lowStockCount.toLocaleString(),
+      description: "Products requiring attention",
+      icon: "!",
+      color: "red",
+    },
+  ];
+
+  const activitySections = [
+    {
+      title: "Recent Sales",
+      subtitle: "Latest sales transactions",
+      icon: "$",
+      type: "sales",
+    },
+    {
+      title: "Recent Purchases",
+      subtitle: "Latest purchase records",
+      icon: "P",
+      type: "purchases",
+    },
+    {
+      title: "Stock Movements",
+      subtitle: "Latest inventory movements",
+      icon: "↔",
+      type: "stock",
+    },
+  ];
+
+  const renderActivity = (section) => {
+    if (section.type === "sales") {
+      if (activityLoading) {
+        return <div className="empty-state"><p>Loading recent sales...</p></div>;
+      }
+
+      if (activityError) {
+        return <div className="empty-state"><p>{activityError}</p></div>;
+      }
+
+      if (recentSales.length === 0) {
+        return (
+          <div className="empty-state">
+            <p>No recent sales</p>
+            <span>Sales records will appear here when available.</span>
+          </div>
+        );
+      }
+
+      return (
+        <div className="dashboard-activity-list">
+          {recentSales.map((activity) => (
+            <div className="dashboard-activity-item" key={activity.id}>
+              <div>
+                <strong>{activity.referenceNumber || "Sale"}</strong>
+                <p>{activity.description || "Sales transaction"}</p>
+                <span>{formatDate(activity.activityDate)}</span>
+              </div>
+              <strong>{formatCurrency(activity.amount)}</strong>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="empty-state">
+        <p>Currently unavailable</p>
+        <span>
+          {section.type === "purchases"
+            ? "Purchase module integration is not available yet."
+            : "Inventory integration is not available yet."}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className="dashboard-page">
       <div className="dashboard-heading">
@@ -83,6 +211,10 @@ function Dashboard() {
           </div>
         </div>
 
+        {summaryError && (
+          <p role="alert">{summaryError}</p>
+        )}
+
         <div className="summary-grid">
           {summaryCards.map((card) => (
             <article className="summary-card" key={card.title}>
@@ -90,11 +222,13 @@ function Dashboard() {
                 <span className={`summary-icon ${card.color}`}>
                   {card.icon}
                 </span>
-                <span className="summary-menu">•••</span>
+                <span className="summary-menu">...</span>
               </div>
 
               <p className="summary-title">{card.title}</p>
-              <h3 className="summary-value">{card.value}</h3>
+              <h3 className="summary-value">
+                {summaryLoading ? "Loading..." : card.value}
+              </h3>
               <p className="summary-description">{card.description}</p>
             </article>
           ))}
@@ -120,11 +254,7 @@ function Dashboard() {
                 </div>
               </div>
 
-              <div className="empty-state">
-                <span className="empty-state-icon">◷</span>
-                <p>No activity available</p>
-                <span>Records will appear here when available.</span>
-              </div>
+              {renderActivity(section)}
             </article>
           ))}
         </div>
@@ -155,11 +285,15 @@ function Dashboard() {
             <tbody>
               <tr>
                 <td colSpan="5" className="table-empty-state">
-                  <span className="empty-state-icon">✓</span>
-                  <strong>No alert data available</strong>
+                  <strong>
+                    {lowStockUnavailable
+                      ? "Low-stock alerts unavailable"
+                      : "Loading low-stock alerts..."}
+                  </strong>
                   <span>
-                    Low stock information will appear here after inventory
-                    integration.
+                    {lowStockUnavailable
+                      ? "Inventory migration is not active yet."
+                      : "Checking inventory data."}
                   </span>
                 </td>
               </tr>
