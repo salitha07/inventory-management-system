@@ -52,6 +52,20 @@ function MainLayout() {
                         </NavLink>
                     )}
 
+                    {/* AUDIT LOGS - ADMIN ONLY */}
+                    
+                    {user?.role === "ADMIN" && (
+                        <NavLink
+                        to="/audit-logs"
+                        className={({ isActive }) =>
+                            isActive ? "nav-link active" : "nav-link"
+                        }
+                    >
+                        <span>📋</span>
+                        Audit Logs
+                      </NavLink>
+                    )}
+
                 </nav>
 
                 {/* USER ROLE */}

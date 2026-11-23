@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import UserManagement from "./pages/users/UserManagement";
+import AuditLogs from "./pages/audit/AuditLogs";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import MainLayout from "./layouts/MainLayout";
@@ -20,6 +21,7 @@ function App() {
             <Route element={<MainLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/users" element={<UserManagement />} />
+              <Route path="/audit-logs" element={<AuditLogs />} />
             </Route>
           </Route>
         </Routes>
