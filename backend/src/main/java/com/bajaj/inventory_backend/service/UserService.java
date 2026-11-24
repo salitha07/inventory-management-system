@@ -12,6 +12,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 import java.util.Locale;
@@ -23,15 +25,18 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditService auditService;
 
     public UserService(
             UserRepository userRepository,
             RoleRepository roleRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            AuditService auditService) {
 
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.auditService = auditService;
     }
 
     // CREATE USER
@@ -58,8 +63,18 @@ public class UserService {
         user.setRole(role);
         user.setActive(true);
 
-        return toResponse(userRepository.save(user));
-    }
+        User savedUser = userRepository.save(user);
+        
+        auditService.log(
+                getCurrentActor(),
+                "CREATE_USER",
+                "USER",
+                savedUser.getId(),
+                "Created user: " + savedUser.getEmail()
+                
+        );
+        return toResponse(savedUser);
+        }
 
     // GET ALL USERS
     @Transactional(readOnly = true)
@@ -122,7 +137,18 @@ public class UserService {
             );
         }
 
-        return toResponse(userRepository.save(user));
+        User updatedUser = userRepository.save(user);
+
+        auditService.log(
+                getCurrentActor(),
+                "UPDATE_USER",
+                "USER",
+                updatedUser.getId(),
+                "Updated user: " + updatedUser.getEmail()
+        );
+
+        return toResponse(updatedUser);
+
     }
 
     // ACTIVATE / DEACTIVATE USER
@@ -148,7 +174,18 @@ public class UserService {
 
         user.setActive(newStatus);
 
-        return toResponse(userRepository.save(user));
+        User updatedUser = userRepository.save(user);
+
+        auditService.log(
+                getCurrentActor(),
+                newStatus ? "ACTIVATE_USER" : "DEACTIVATE_USER",
+                "USER",
+                updatedUser.getId(),
+                (newStatus ? "Activated user: " : "Deactivated user: ")
+                        + updatedUser.getEmail()
+        );
+
+        return toResponse(updatedUser);
     }
 
     // FIND USER
@@ -192,5 +229,19 @@ public class UserService {
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );
+    }
+
+    private User getCurrentActor() {
+        Authentication authentication =
+            SecurityContextHolder.getContext().getAuthentication();
+            
+        if (authentication == null
+            || !authentication.isAuthenticated()
+            || "anonymousUser".equals(authentication.getPrincipal())) {
+                return null;
+        }
+        
+        return userRepository.findByEmail(authentication.getName())
+            .orElse(null);
     }
 }
