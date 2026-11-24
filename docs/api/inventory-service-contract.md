@@ -131,7 +131,7 @@ Inventory-owned contracts awaiting integration agreement.
 | Sales declaration | Coordination needed |
 | --- | --- |
 | isStockAvailable(Long,Integer), getAvailableStock(Long), validateStockAvailability(Long,Integer) | Availability is not reservation; agree read mapping |
-| void deductStock(Long,Integer,StockMovementType,Long) | Reconcile canonical types and command metadata/result |
+| void deductStock(Long,Integer,StockMovementType,Long) | `SALE` maps to `SALE_DEDUCT` with reference type `SALE` and the saved sale ID. Production reason still needs agreement. |
 | void restoreStock(Long,Integer,StockMovementType,Long) | Distinguish customer return from sale void |
 | BigDecimal getCurrentUnitCost(Long) | Agree owner/source with Member 2; costPrice is a candidate |
 
@@ -148,7 +148,7 @@ from the sale ID. This checkout check grants no permissions for receipts, adjust
 returns or voids and does not implement the general OperationPolicy.
 
 The checkout caller uses availability validation, acquisition-cost lookup and deduction.
-The cost source and deduction reference type and reason still require agreement before
+The cost source and deduction reason still require agreement before
 registering the service. Restoration remains unavailable until approved return eligibility
 and void classification are defined. The purchase contract requires a purchase reference
 and describes its role list as proposed. Manual adjustment still needs an approved role
@@ -163,11 +163,24 @@ reference pairs cannot safely be assumed unique for partial/multi-line operation
 
 ## Verification scope
 
-JpaInventoryPostgresTest is opt-in using INVENTORY_TEST_POSTGRES_PORT. Point it only at
+JpaInventoryPostgresTest and SalesCheckoutPostgresTest are opt-in using
+INVENTORY_TEST_POSTGRES_PORT. Point them only at
 a newly initialized disposable loopback PostgreSQL cluster. Use the database and role
 inventory_jpa_test and test-only trust authentication within that cluster. Apply the Users
-V1, catalog V2 and Inventory V6 scripts from `backend/src/main/resources/db/migration` to the
-disposable database, then insert a category
-named Inventory fixture. Run the Inventory tests with Java 21 and Maven. Stop the temporary
-server after the run. The test context validates the schema and uses its own JPA transaction
-manager. It does not start the application or connect to its configured database.
+V1, catalog V2, Sales V5 and V5_1, and Inventory V6 scripts from
+`backend/src/main/resources/db/migration` to the disposable database, then insert a category
+named Inventory fixture. Run the Inventory tests with Java 21 and Maven, then stop the
+temporary server. These test contexts validate their mapped schemas and use a disposable
+database.
+
+The isolated PostgreSQL 18.4 run passed 37 Inventory tests, including five checkout
+integration tests. The checkout tests use the Spring-proxied SalesService, real Sales and
+Inventory repositories and a shared JPA transaction manager. They verified committed sale
+items and cost snapshots, sale-linked movements with the authenticated creator, insufficient
+stock rejection, and two checkouts that both passed preflight but could commit only one sale
+for the last unit. A forced failure on the second deduction rolled back the sale, sale items,
+earlier balance update and earlier ledger insert.
+
+The checkout fixture supplies the catalog, acquisition cost, movement reason and operation
+policy for tests only. The run does not establish production bean registration, authorization
+through the HTTP filter chain, full Flyway startup or rollout readiness.
