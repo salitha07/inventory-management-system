@@ -10,7 +10,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.util.Objects;
 
 /**
- * Explicit Inventory-owned initialization, deliberately unwired until Product/V2 and V6 exist.
+ * Explicit Inventory-owned initialization, invoked by callers after Product and V6 tables exist.
  * Inject JDBC and a template sharing the caller's DataSource and compatible transaction manager;
  * a separate JDBC manager does not coordinate with a Product/JPA transaction automatically.
  * Product creation should invoke this after persistence/flush in the same transaction.

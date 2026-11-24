@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Inventory read implementation, deliberately unwired until Product/V2 and V6 are available.
+ * Inventory read implementation. Queries require the Product and V6 tables.
  * No schema creation, balance initialization, writes or Product entity dependency.
  * Count/content queries can observe concurrent changes unless the caller supplies a suitable
  * shared snapshot transaction. These reads do not reserve stock.

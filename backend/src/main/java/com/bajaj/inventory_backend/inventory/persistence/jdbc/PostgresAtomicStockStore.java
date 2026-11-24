@@ -17,7 +17,7 @@ import java.util.Objects;
 import java.util.function.IntFunction;
 
 /**
- * Unwired JDBC adapter: no component registration or startup SQL.
+ * JDBC adapter with no startup SQL.
  * Supplied manager must coordinate this JdbcTemplate's DataSource with caller JPA/Sales.
  * A separate JDBC manager does not guarantee atomicity with a JPA caller.
  */
