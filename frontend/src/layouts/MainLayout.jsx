@@ -7,17 +7,11 @@ function MainLayout() {
 
     return (
         <div className="main-layout">
-
-            {/* APPLICATION HEADER */}
-
             <header className="app-header">
 
                 {/* BRANDING */}
-
                 <div className="app-brand">
-                    <div className="app-brand-icon">
-                        ➤
-                    </div>
+                    <div className="app-brand-icon">➤</div>
 
                     <div className="app-brand-text">
                         <h2>BAJAJ</h2>
@@ -26,9 +20,9 @@ function MainLayout() {
                 </div>
 
                 {/* NAVIGATION */}
-
                 <nav className="app-navigation">
 
+                    {/* Dashboard */}
                     <NavLink
                         to="/"
                         end
@@ -40,6 +34,7 @@ function MainLayout() {
                         Dashboard
                     </NavLink>
 
+                    {/* User Management */}
                     {["ADMIN", "MANAGER"].includes(user?.role) && (
                         <NavLink
                             to="/users"
@@ -52,40 +47,66 @@ function MainLayout() {
                         </NavLink>
                     )}
 
-                    {/* AUDIT LOGS - ADMIN ONLY */}
-                    
+                    {/* Audit Logs - ADMIN ONLY */}
                     {user?.role === "ADMIN" && (
                         <NavLink
-                        to="/audit-logs"
+                            to="/audit-logs"
+                            className={({ isActive }) =>
+                                isActive ? "nav-link active" : "nav-link"
+                            }
+                        >
+                            <span>📋</span>
+                            Audit Logs
+                        </NavLink>
+                    )}
+
+                    {/* Sales Management */}
+                    <NavLink
+                        to="/sales"
+                        className={({ isActive }) =>
+                            isActive ? "nav-link active" : "nav-link"
+                        }
+                    >
+                        <span>💰</span>
+                        Sales
+                    </NavLink>
+
+                    {/* Point of Sale */}
+                    <NavLink
+                        to="/sales/pos"
+                        className={({ isActive }) =>
+                            isActive ? "nav-link active" : "nav-link"
+                        }
+                    >
+                        <span>🛒</span>
+                        POS
+                    </NavLink>
+
+                    {/* Sales History */}
+                    <NavLink
+                        to="/sales/history"
                         className={({ isActive }) =>
                             isActive ? "nav-link active" : "nav-link"
                         }
                     >
                         <span>📋</span>
-                        Audit Logs
-                      </NavLink>
-                    )}
+                        Sales History
+                    </NavLink>
 
                 </nav>
 
                 {/* USER ROLE */}
-
                 <div className="header-user">
                     <span className="header-user-indicator"></span>
-
-                    <span>
-                        {user?.role?.replace("_", " ")}
-                    </span>
+                    <span>{user?.role?.replace("_", " ")}</span>
                 </div>
 
             </header>
 
             {/* PAGE CONTENT */}
-
             <main className="app-content">
                 <Outlet />
             </main>
-
         </div>
     );
 }
