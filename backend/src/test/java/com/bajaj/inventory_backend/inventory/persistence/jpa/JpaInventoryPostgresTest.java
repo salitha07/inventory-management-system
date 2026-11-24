@@ -5,6 +5,7 @@ import com.bajaj.inventory_backend.product.Product;
 import com.bajaj.inventory_backend.inventory.core.InventoryOperations;
 import com.bajaj.inventory_backend.inventory.core.InventoryOperations.InsufficientStock;
 import com.bajaj.inventory_backend.inventory.core.InventoryPorts.AtomicStockStore;
+import com.bajaj.inventory_backend.inventory.core.InventoryPorts.MovementWrite;
 import com.bajaj.inventory_backend.inventory.core.InventoryPorts.OperationPolicy;
 import com.bajaj.inventory_backend.inventory.core.InventoryQueries;
 import com.bajaj.inventory_backend.inventory.domain.MovementKind;
@@ -261,13 +262,72 @@ class JpaInventoryPostgresTest {
                 .setParameter("actor", actor).executeUpdate());
     }
 
+    @Test
+    void rejectsMalformedPlansWithoutChangingBalanceOrLedger() {
+        initializer.initializeStock(product);
+        var store = context.getBean(AtomicStockStore.class);
+        var movementContext = change(1, actor).context();
+        assertReason(Reason.INVALID_WRITE_PLAN, () -> store.apply(product, before -> null));
+        assertReason(Reason.INVALID_WRITE_PLAN, () -> store.apply(product, before ->
+                new MovementWrite(product + 1, MovementKind.PURCHASE_RECEIVE, 1, 1, movementContext, NOW)));
+        assertReason(Reason.INVALID_WRITE_PLAN, () -> store.apply(product, before ->
+                new MovementWrite(product, MovementKind.PURCHASE_RECEIVE, 1, 2, movementContext, NOW)));
+        assertEquals(0, queries.getCurrentStock(product).quantity());
+        assertTrue(history(null).isEmpty());
+    }
+
+    @Test
+    void rollsBackFlushedStockAndLedgerWhenCallerCommitFails() {
+        initializer.initializeStock(product);
+        var failure = assertThrows(RuntimeException.class, () -> tx.executeWithoutResult(status -> {
+            operations.receiveStock(change(3, actor));
+            assertEquals(3, queries.getCurrentStock(product).quantity());
+            assertEquals(1L, history(null).getTotalElements());
+            em.createNativeQuery("""
+                    CREATE TEMP TABLE inventory_deferred_check (
+                        fixture_id BIGINT UNIQUE DEFERRABLE INITIALLY DEFERRED
+                    ) ON COMMIT DROP
+                    """).executeUpdate();
+            em.createNativeQuery("INSERT INTO inventory_deferred_check VALUES (1), (1)").executeUpdate();
+        }));
+        assertSqlState("23505", failure);
+        assertEquals(0, queries.getCurrentStock(product).quantity());
+        assertTrue(history(null).isEmpty());
+    }
+
+    @Test
+    void paginatesMultipleProductsInProductCodeOrder() {
+        String prefix = "PAGE-" + UUID.randomUUID();
+        var productIds = tx.execute(status -> List.of(
+                insertPageProduct(prefix + "-C"), insertPageProduct(prefix + "-A"), insertPageProduct(prefix + "-B")));
+        productIds.forEach(initializer::initializeStock);
+        var search = new CurrentStockQuery(prefix, null, null, false);
+        var first = queries.searchCurrentStock(null, search, new PageQuery(0, 2));
+        var second = queries.searchCurrentStock(null, search, new PageQuery(1, 2));
+        assertEquals(3L, first.getTotalElements());
+        assertEquals(3L, second.getTotalElements());
+        assertEquals(List.of(prefix + "-A", prefix + "-B"), first.map(CurrentStockView::productCode).getContent());
+        assertEquals(List.of(prefix + "-C"), second.map(CurrentStockView::productCode).getContent());
+    }
+
+    private long insertPageProduct(String code) {
+        return insertId("""
+                INSERT INTO products(product_code,product_name,category_id,cost_price,selling_price)
+                VALUES (:token, 'Pagination fixture', (SELECT id FROM categories WHERE category_name = 'Inventory fixture'), 1, 2)
+                RETURNING id
+                """, code);
+    }
+
     private static void assertCheckViolation(Runnable operation) {
-        Throwable error = assertThrows(RuntimeException.class, operation::run);
+        assertSqlState("23514", assertThrows(RuntimeException.class, operation::run));
+    }
+
+    private static void assertSqlState(String expected, Throwable error) {
         while (error != null && !(error instanceof SQLException)) {
             error = error.getCause();
         }
         assertInstanceOf(SQLException.class, error);
-        assertEquals("23514", ((SQLException) error).getSQLState());
+        assertEquals(expected, ((SQLException) error).getSQLState());
     }
 
     private void setThreshold(int threshold) {

@@ -137,6 +137,21 @@ Four-argument calls lack explicit reason/referenceType/actor. Sales's optional I
 injection can bypass stock operations. The compatibility adapter remains unregistered
 pending approved collaborators and metadata. Sales's seeded catalogue must map to real IDs.
 
+For Sales checkout deduction, `SalesStockActorResolver` reads the authenticated UserDetails
+from Spring Security, resolves its email through UserRepository and requires an active
+persisted account. The current account role and authenticated authority must agree.
+The documented checkout roles are CASHIER, MANAGER and ADMIN. The adapter rejects a
+movement context whose actor differs from the resolved user or whose reference ID differs
+from the sale ID. This checkout check grants no permissions for receipts, adjustments,
+returns or voids and does not implement the general OperationPolicy.
+
+The checkout caller uses availability validation, acquisition-cost lookup and deduction.
+The cost source and deduction reference type and reason still require agreement before
+registering the service. Restoration remains unavailable until approved return eligibility
+and void classification are defined. The purchase contract requires a purchase reference
+and describes its role list as proposed. Manual adjustment still needs an approved role
+and reference policy. InventoryQueries and JpaStockInitializer remain internal JPA beans.
+
 Member 1: version/activation, shared errors, principal/permissions and integration order.
 Member 2: dedicated balance/threshold ownership, Product initialization, opening data and
 active-state policy. Member 5: canonical vocabulary, service compatibility, caller transaction

@@ -9,6 +9,9 @@ import com.bajaj.inventory_backend.inventory.dto.InventoryContracts.MovementCont
 import com.bajaj.inventory_backend.inventory.dto.InventoryContracts.StockChangeCommand;
 import com.bajaj.inventory_backend.inventory.entity.StockMovementType;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.access.AccessDeniedException;
+import com.bajaj.inventory_backend.common.exception.ProductNotFoundException;
+import com.bajaj.inventory_backend.inventory.persistence.StockPersistenceException;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,11 +24,13 @@ class SalesInventoryServiceTest {
     private final InventoryQueries queries = mock(InventoryQueries.class);
     private final InventoryOperations operations = mock(InventoryOperations.class);
     private final SalesInventoryService.SalesContext salesContext = mock(SalesInventoryService.SalesContext.class);
-    private final InventoryService service = new SalesInventoryService(queries, operations, salesContext);
+    private final SalesStockActorResolver actors = mock(SalesStockActorResolver.class);
+    private final InventoryService service = new SalesInventoryService(queries, operations, salesContext, actors);
 
     @Test
     void mapsDeductionFailureUsingBalanceFromTheLockedOperation() {
         var context = new MovementContext("SALE", 3L, "Checkout", new AuthenticatedActor(4L));
+        when(actors.requireCheckoutActor()).thenReturn(context.actor());
         when(salesContext.deductionContext(3L)).thenReturn(context);
         when(queries.getCurrentStock(1L)).thenReturn(new CurrentStockView(1L, "P1", "Part", 2L, true, 8, null));
         when(operations.deductStock(new StockChangeCommand(1L, 5, context)))
@@ -47,6 +52,31 @@ class SalesInventoryServiceTest {
                 () -> service.deductStock(1L, 5, StockMovementType.SALE, 3L));
         assertThrows(UnsupportedOperationException.class,
                 () -> service.restoreStock(1L, 5, StockMovementType.RETURN, 3L));
-        verifyNoInteractions(queries, operations, salesContext);
+        verifyNoInteractions(queries, operations, salesContext, actors);
+    }
+
+    @Test
+    void rejectsSpoofedActorBeforeAnyStockAccess() {
+        when(actors.requireCheckoutActor()).thenReturn(new AuthenticatedActor(4L));
+        when(salesContext.deductionContext(3L))
+                .thenReturn(new MovementContext("SALE", 3L, "Checkout", new AuthenticatedActor(5L)));
+        TransactionSynchronizationManager.setActualTransactionActive(true);
+        try {
+            assertThrows(AccessDeniedException.class, () -> service.deductStock(1L, 5, StockMovementType.SALE, 3L));
+        } finally {
+            TransactionSynchronizationManager.setActualTransactionActive(false);
+        }
+        verifyNoInteractions(queries, operations);
+    }
+
+    @Test
+    void mapsMissingProductWithoutTreatingUninitializedStockAsZero() {
+        when(queries.getCurrentStock(1L))
+                .thenThrow(new StockPersistenceException(StockPersistenceException.Reason.PRODUCT_NOT_FOUND));
+        when(queries.getCurrentStock(2L))
+                .thenThrow(new StockPersistenceException(StockPersistenceException.Reason.STOCK_NOT_INITIALIZED));
+        assertEquals(1L, assertThrows(ProductNotFoundException.class, () -> service.getAvailableStock(1L)).getProductId());
+        assertEquals(StockPersistenceException.Reason.STOCK_NOT_INITIALIZED,
+                assertThrows(StockPersistenceException.class, () -> service.getAvailableStock(2L)).reason());
     }
 }

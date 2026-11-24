@@ -9,6 +9,7 @@ import com.bajaj.inventory_backend.inventory.dto.InventoryContracts.MovementCont
 import com.bajaj.inventory_backend.inventory.dto.InventoryContracts.StockChangeCommand;
 import com.bajaj.inventory_backend.inventory.entity.StockMovementType;
 import com.bajaj.inventory_backend.inventory.persistence.StockPersistenceException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
@@ -19,11 +20,14 @@ final class SalesInventoryService implements InventoryService {
     private final InventoryQueries queries;
     private final InventoryOperations operations;
     private final SalesContext salesContext;
+    private final SalesStockActorResolver actors;
 
-    SalesInventoryService(InventoryQueries queries, InventoryOperations operations, SalesContext salesContext) {
+    SalesInventoryService(InventoryQueries queries, InventoryOperations operations, SalesContext salesContext,
+                          SalesStockActorResolver actors) {
         this.queries = Objects.requireNonNull(queries);
         this.operations = Objects.requireNonNull(operations);
         this.salesContext = Objects.requireNonNull(salesContext);
+        this.actors = Objects.requireNonNull(actors);
     }
 
     interface SalesContext {
@@ -63,13 +67,19 @@ final class SalesInventoryService implements InventoryService {
                 || TransactionSynchronizationManager.isCurrentTransactionReadOnly()) {
             throw new IllegalStateException("Sale deduction requires the caller's write transaction");
         }
-        CurrentStockView stock = activeStock(productId);
-        MovementContext context = salesContext.deductionContext(referenceId);
+        var actor = actors.requireCheckoutActor();
+        MovementContext context = Objects.requireNonNull(salesContext.deductionContext(referenceId),
+                "Missing sale movement context");
         if (!referenceId.equals(context.referenceId())) {
             throw new IllegalStateException("Deduction context must reference the calling sale");
         }
+        if (!actor.equals(context.actor())) {
+            throw new AccessDeniedException("Sale movement actor does not match the authenticated user");
+        }
+        CurrentStockView stock = activeStock(productId);
         try {
-            operations.deductStock(new StockChangeCommand(productId, quantity, context));
+            operations.deductStock(new StockChangeCommand(productId, quantity,
+                    new MovementContext(context.referenceType(), context.referenceId(), context.reason(), actor)));
         } catch (InventoryOperations.InsufficientStock ex) {
             throw new InsufficientStockException(productId, stock.productName(), quantity, ex.available());
         } catch (StockPersistenceException ex) {
