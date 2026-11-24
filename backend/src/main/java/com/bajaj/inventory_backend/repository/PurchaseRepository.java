@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 public interface PurchaseRepository
         extends JpaRepository<Purchase, Long> {
@@ -33,5 +35,9 @@ public interface PurchaseRepository
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate
     );
-
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Purchase p WHERE p.id = :id")
+    Optional<Purchase> findByIdForUpdate(
+            @Param("id") Long id
+    );
 }

@@ -140,7 +140,7 @@ public class PurchaseService {
     @Transactional
     public PurchaseResponse cancelPurchase(Long id) {
 
-        Purchase purchase = purchaseRepository.findById(id)
+        Purchase purchase = purchaseRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Purchase not found: " + id
