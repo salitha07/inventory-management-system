@@ -15,6 +15,8 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @RestController
 @RequestMapping("/api/v1/purchases")
@@ -35,7 +37,26 @@ public class PurchaseController {
     public List<PurchaseResponse> getAllPurchases() {
         return purchaseService.getAllPurchases();
     }
-
+    @GetMapping("/search")
+    public List<PurchaseResponse> searchPurchases(
+            @RequestParam(required = false) String purchaseNumber,
+            @RequestParam(required = false) Long supplierId,
+            @RequestParam(required = false) PurchaseStatus status,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate fromDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate toDate
+    ) {
+        return purchaseService.searchPurchases(
+                purchaseNumber,
+                supplierId,
+                status,
+                fromDate,
+                toDate
+        );
+    }
     @GetMapping("/{id}")
     public PurchaseResponse getPurchaseById(@PathVariable Long id) {
         return purchaseService.getPurchaseById(id);

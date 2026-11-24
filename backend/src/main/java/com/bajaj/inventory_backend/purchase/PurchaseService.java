@@ -1,6 +1,6 @@
-
 package com.bajaj.inventory_backend.purchase;
 
+import com.bajaj.inventory_backend.repository.PurchaseRepository;
 import com.bajaj.inventory_backend.purchase.dto.CreatePurchaseRequest;
 import com.bajaj.inventory_backend.purchase.dto.PurchaseItemRequest;
 import com.bajaj.inventory_backend.purchase.dto.PurchaseItemResponse;
@@ -10,10 +10,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.time.LocalDate;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class PurchaseService {
@@ -31,13 +33,41 @@ public class PurchaseService {
                 .map(this::mapToResponse)
                 .toList();
     }
+    @Transactional(readOnly = true)
+    public List<PurchaseResponse> searchPurchases(
+            String purchaseNumber,
+            Long supplierId,
+            PurchaseStatus status,
+            LocalDate fromDate,
+            LocalDate toDate
+    ) {
+        if (fromDate != null && toDate != null
+                && fromDate.isAfter(toDate)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "From date cannot be after to date"
+            );
+        }
+
+        return purchaseRepository.searchPurchases(
+                        purchaseNumber,
+                        supplierId,
+                        status,
+                        fromDate,
+                        toDate
+                )
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
 
     @Transactional(readOnly = true)
     public PurchaseResponse getPurchaseById(Long id) {
+
         Purchase purchase = purchaseRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Purchase not found: " + id));
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Purchase not found: " + id
+                ));
 
         return mapToResponse(purchase);
     }
@@ -66,14 +96,15 @@ public class PurchaseService {
         purchase.setCreatedBy(createdBy);
 
         BigDecimal subtotal = BigDecimal.ZERO;
+
         List<PurchaseItem> items = new ArrayList<>();
 
         for (PurchaseItemRequest itemRequest : request.items()) {
 
-            BigDecimal lineTotal =
-                    itemRequest.unitCost().multiply(
-                            BigDecimal.valueOf(itemRequest.quantity())
-                    );
+            BigDecimal lineTotal = itemRequest.unitCost()
+                    .multiply(BigDecimal.valueOf(
+                            itemRequest.quantity()
+                    ));
 
             PurchaseItem item = new PurchaseItem();
 
@@ -84,6 +115,7 @@ public class PurchaseService {
             item.setLineTotal(lineTotal);
 
             items.add(item);
+
             subtotal = subtotal.add(lineTotal);
         }
 
@@ -100,7 +132,8 @@ public class PurchaseService {
         purchase.setTotal(subtotal.subtract(discount));
         purchase.setItems(items);
 
-        Purchase savedPurchase = purchaseRepository.save(purchase);
+        Purchase savedPurchase =
+                purchaseRepository.save(purchase);
 
         return mapToResponse(savedPurchase);
     }
