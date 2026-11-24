@@ -13,6 +13,7 @@ import com.bajaj.inventory_backend.inventory.persistence.StockPersistenceExcepti
 import com.bajaj.inventory_backend.inventory.persistence.StockPersistenceException.Reason;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
+import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -24,6 +25,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
+import org.hibernate.query.NativeQuery;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -204,6 +206,68 @@ class JpaInventoryPostgresTest {
         }));
         assertEquals(0, queries.getCurrentStock(product).quantity());
         assertEquals(1, history(MovementKind.SALE_DEDUCT).getTotalElements());
+    }
+
+    @Test
+    void rejectsMissingBalanceAndReadOnlyMutationsWithoutCreatingLedgerRows() {
+        assertReason(Reason.STOCK_NOT_INITIALIZED, () -> operations.receiveStock(change(1, actor)));
+        var readOnly = new TransactionTemplate(tx.getTransactionManager());
+        readOnly.setReadOnly(true);
+        assertReason(Reason.READ_ONLY, () -> readOnly.execute(status -> initializer.initializeStock(product)));
+        assertReason(Reason.STOCK_NOT_INITIALIZED, () -> queries.getCurrentStock(product));
+
+        initializer.initializeStock(product);
+        assertReason(Reason.READ_ONLY, () -> readOnly.execute(status -> operations.receiveStock(change(1, actor))));
+        assertEquals(0, queries.getCurrentStock(product).quantity());
+        assertTrue(history(null).isEmpty());
+    }
+
+    @Test
+    void rejectsAnOversizedReferenceWithoutChangingTheBalance() {
+        initializer.initializeStock(product);
+        var context = new MovementContext("X".repeat(65), 1L, "Fixture", new AuthenticatedActor(actor));
+        assertThrows(IllegalArgumentException.class,
+                () -> operations.receiveStock(new StockChangeCommand(product, 1, context)));
+        assertEquals(0, queries.getCurrentStock(product).quantity());
+        assertTrue(history(null).isEmpty());
+    }
+
+    @Test
+    void databaseRejectsNegativeStockAndInvalidLedgerRows() {
+        initializer.initializeStock(product);
+        assertCheckViolation(() -> tx.executeWithoutResult(status -> em.createNativeQuery("""
+                UPDATE inventory_stock SET quantity = -1 WHERE product_id = :id
+                """).setParameter("id", product).executeUpdate()));
+        assertCheckViolation(() -> setThreshold(-1));
+        assertCheckViolation(() -> insertLedger("UNKNOWN", 1, 1, 1L));
+        assertCheckViolation(() -> insertLedger("SALE_DEDUCT", 1, 1, 1L));
+        assertCheckViolation(() -> insertLedger("MANUAL_ADJUSTMENT", 0, 0, null));
+        assertCheckViolation(() -> insertLedger("PURCHASE_RECEIVE", 1, 1, null));
+        assertCheckViolation(() -> insertLedger("PURCHASE_RECEIVE", 2, 1, 1L));
+        assertCheckViolation(() -> insertLedger("SALE_DEDUCT", -1, -1, 1L));
+        assertEquals(0, queries.getCurrentStock(product).quantity());
+        assertNull(queries.getCurrentStock(product).reorderLevel());
+        assertTrue(history(null).isEmpty());
+    }
+
+    private void insertLedger(String kind, int change, int after, Long referenceId) {
+        tx.executeWithoutResult(status -> em.createNativeQuery("""
+                INSERT INTO stock_movements
+                (product_id, movement_type, quantity_change, quantity_after, reference_type, reference_id, reason, created_by)
+                VALUES (:product, :kind, :change, :after, 'FIXTURE', :reference, 'Test', :actor)
+                """).unwrap(NativeQuery.class)
+                .setParameter("product", product).setParameter("kind", kind).setParameter("change", change)
+                .setParameter("after", after).setParameter("reference", referenceId, Long.class)
+                .setParameter("actor", actor).executeUpdate());
+    }
+
+    private static void assertCheckViolation(Runnable operation) {
+        Throwable error = assertThrows(RuntimeException.class, operation::run);
+        while (error != null && !(error instanceof SQLException)) {
+            error = error.getCause();
+        }
+        assertInstanceOf(SQLException.class, error);
+        assertEquals("23514", ((SQLException) error).getSQLState());
     }
 
     private void setThreshold(int threshold) {
