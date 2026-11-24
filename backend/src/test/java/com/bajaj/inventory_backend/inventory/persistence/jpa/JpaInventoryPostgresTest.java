@@ -42,7 +42,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
-/** Run only against the disposable loopback cluster described in the Inventory contract. */
+/**
+ * Run only against the disposable loopback cluster described in the Inventory contract.
+ * The fixture uses V1, catalog V2 and V6 from the active db/migration resources.
+ */
 @EnabledIfEnvironmentVariable(named = "INVENTORY_TEST_POSTGRES_PORT", matches = "[0-9]+")
 class JpaInventoryPostgresTest {
     private static final Instant NOW = Instant.parse("2026-01-01T00:00:00Z");

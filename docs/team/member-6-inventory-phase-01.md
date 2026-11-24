@@ -66,12 +66,10 @@ balance store. It isolates quantity writes from Product catalogue saves but requ
 and explicit lifecycle initialization. Alternatives are quantity/threshold on Product or a
 separate balance with Product-owned threshold; neither is silently implemented.
 
-[Single V6 SQL candidate](../migrations/V6__create_inventory_stock_and_stock_movements.sql)
-replaces the commented schema draft; .sql.draft is now only a pointer, not another definition.
-It is executable SQL for submission review but UNAPPROVED / UNVERIFIED and outside active
-Flyway locations. No database SQL has been executed. Final V6 version/name needs Member 1
-approval. V1 users and Member 2 V2 products must exist first. Do not activate on this branch
-while Product/V2 is absent or rewrite already applied migrations.
+[Single V6 migration](../../backend/src/main/resources/db/migration/V6__create_inventory_stock_and_stock_movements.sql)
+is now in the active Flyway resource directory. The .sql.draft file points to that migration.
+V6 has been verified on disposable PostgreSQL using Users V1 and Catalog V2. Shared
+migration coordination and rollout approval remain pending with Member 1.
 
 The candidate preserves the reviewed tables, restrictive FKs, canonical type/sign checks,
 nonnegative balance/threshold checks and history/reference indexes. Generic reference IDs

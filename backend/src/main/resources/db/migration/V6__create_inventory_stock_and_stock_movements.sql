@@ -1,9 +1,9 @@
--- V6 SUBMISSION CANDIDATE — VERIFIED ON DISPOSABLE POSTGRESQL; ACTIVATION PENDING
+-- V6 INVENTORY MIGRATION — VERIFIED ON DISPOSABLE POSTGRESQL; SHARED ROLLOUT PENDING
 -- Hibernate validates InventoryStock and StockMovement against this schema.
--- Kept under docs/migrations, outside Spring Boot classpath:db/migration.
+-- Discovered by Flyway in classpath:db/migration.
 -- PREREQUISITES: V1 users(id BIGINT PK) and Member 2 V2 products(id BIGINT PK).
 -- Both prerequisites are present in the checkout. Resolve the competing V2 versions
--- through migration coordination before activating V6 in the shared Flyway chain.
+-- through migration coordination before running the shared Flyway chain.
 -- Member 1 coordinates the version and rollout; Product lifecycle requires Member 2 agreement.
 -- No Product/User tables are recreated. No default opening stock or backfill is assumed.
 -- At most one stock row per Product is enforced; lifecycle initialization remains separate.
