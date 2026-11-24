@@ -90,4 +90,10 @@ public class PurchaseController {
                 user.getId()
         );
     }
+    @PostMapping("/{id}/cancel")
+    public PurchaseResponse cancelPurchase(
+            @PathVariable Long id
+    ) {
+        return purchaseService.cancelPurchase(id);
+    }
 }

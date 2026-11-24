@@ -137,7 +137,29 @@ public class PurchaseService {
 
         return mapToResponse(savedPurchase);
     }
+    @Transactional
+    public PurchaseResponse cancelPurchase(Long id) {
 
+        Purchase purchase = purchaseRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Purchase not found: " + id
+                ));
+
+        if (purchase.getStatus() != PurchaseStatus.DRAFT) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Only draft purchases can be cancelled"
+            );
+        }
+
+        purchase.setStatus(PurchaseStatus.CANCELLED);
+
+        Purchase cancelledPurchase =
+                purchaseRepository.save(purchase);
+
+        return mapToResponse(cancelledPurchase);
+    }
     private PurchaseResponse mapToResponse(Purchase purchase) {
 
         List<PurchaseItemResponse> itemResponses =
