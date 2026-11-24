@@ -1,8 +1,11 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import UserManagement from "./pages/users/UserManagement";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+
+import UserManagement from "./pages/users/UserManagement";
+import AuditLogs from "./pages/audit/AuditLogs";
+
 import SalesManagement from "./pages/SalesManagement";
 import POS from "./pages/POS";
 import SalesHistory from "./pages/SalesHistory";
@@ -23,10 +26,14 @@ function App() {
                     {/* Protected Routes */}
                     <Route element={<ProtectedRoute />}>
                         <Route element={<MainLayout />}>
+                            {/* Dashboard */}
                             <Route path="/" element={<Dashboard />} />
 
                             {/* User Management */}
                             <Route path="/users" element={<UserManagement />} />
+
+                            {/* Audit Logs */}
+                            <Route path="/audit-logs" element={<AuditLogs />} />
 
                             {/* Sales Management */}
                             <Route path="/sales" element={<SalesManagement />} />

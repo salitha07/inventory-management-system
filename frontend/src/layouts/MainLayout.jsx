@@ -22,6 +22,7 @@ function MainLayout() {
                 {/* NAVIGATION */}
                 <nav className="app-navigation">
 
+                    {/* Dashboard */}
                     <NavLink
                         to="/"
                         end
@@ -33,6 +34,7 @@ function MainLayout() {
                         Dashboard
                     </NavLink>
 
+                    {/* User Management */}
                     {["ADMIN", "MANAGER"].includes(user?.role) && (
                         <NavLink
                             to="/users"
@@ -45,6 +47,20 @@ function MainLayout() {
                         </NavLink>
                     )}
 
+                    {/* Audit Logs - ADMIN ONLY */}
+                    {user?.role === "ADMIN" && (
+                        <NavLink
+                            to="/audit-logs"
+                            className={({ isActive }) =>
+                                isActive ? "nav-link active" : "nav-link"
+                            }
+                        >
+                            <span>📋</span>
+                            Audit Logs
+                        </NavLink>
+                    )}
+
+                    {/* Sales Management */}
                     <NavLink
                         to="/sales"
                         className={({ isActive }) =>
@@ -55,6 +71,7 @@ function MainLayout() {
                         Sales
                     </NavLink>
 
+                    {/* Point of Sale */}
                     <NavLink
                         to="/sales/pos"
                         className={({ isActive }) =>
@@ -65,6 +82,7 @@ function MainLayout() {
                         POS
                     </NavLink>
 
+                    {/* Sales History */}
                     <NavLink
                         to="/sales/history"
                         className={({ isActive }) =>

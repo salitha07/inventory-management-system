@@ -18,6 +18,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final JwtService jwtService;
+    private final AuditService auditService;
 
     @Value("${app.jwt.expiration}")
     private long jwtExpiration;
@@ -25,14 +26,17 @@ public class AuthService {
     public AuthService(
             AuthenticationManager authenticationManager,
             UserRepository userRepository,
-            JwtService jwtService) {
-
+            JwtService jwtService,
+            AuditService auditService) {
+                
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.jwtService = jwtService;
+        this.auditService = auditService;
+        
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request) {
 
         // Verify email and password
@@ -60,6 +64,15 @@ public class AuthService {
                         user.getRole().getName().name(),
                         user.isActive()
                 );
+
+        // Save successful login audit log
+        auditService.log(
+                user,
+                "LOGIN",
+                "USER",
+                user.getId(),
+                "User logged in successfully"
+        );
 
         // Return login response
         return new AuthResponse(
