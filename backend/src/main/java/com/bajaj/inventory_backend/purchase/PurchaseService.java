@@ -16,14 +16,26 @@ import java.util.UUID;
 import java.time.LocalDate;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import com.bajaj.inventory_backend.entity.Supplier;
+import com.bajaj.inventory_backend.product.Product;
+import com.bajaj.inventory_backend.repository.SupplierRepository;
+import com.bajaj.inventory_backend.repository.ProductRepository;
 
 @Service
 public class PurchaseService {
 
     private final PurchaseRepository purchaseRepository;
+    private final SupplierRepository supplierRepository;
+    private final ProductRepository productRepository;
 
-    public PurchaseService(PurchaseRepository purchaseRepository) {
+    public PurchaseService(
+            PurchaseRepository purchaseRepository,
+            SupplierRepository supplierRepository,
+            ProductRepository productRepository
+    ) {
         this.purchaseRepository = purchaseRepository;
+        this.supplierRepository = supplierRepository;
+        this.productRepository = productRepository;
     }
 
     @Transactional(readOnly = true)
@@ -60,7 +72,36 @@ public class PurchaseService {
                 .map(this::mapToResponse)
                 .toList();
     }
+    private void validateSupplier(Long supplierId) {
 
+        Supplier supplier = supplierRepository.findById(supplierId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Supplier not found: " + supplierId
+                ));
+
+        if (!supplier.isActive()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Supplier is inactive: " + supplierId
+            );
+        }
+    }
+    private void validateProduct(Long productId) {
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Product not found: " + productId
+                ));
+
+        if (!product.isActive()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Product is inactive: " + productId
+            );
+        }
+    }
     @Transactional(readOnly = true)
     public PurchaseResponse getPurchaseById(Long id) {
 
@@ -77,7 +118,7 @@ public class PurchaseService {
             CreatePurchaseRequest request,
             Long createdBy
     ) {
-
+        validateSupplier(request.supplierId());
         Purchase purchase = new Purchase();
 
         purchase.setPurchaseNumber(
@@ -100,6 +141,8 @@ public class PurchaseService {
         List<PurchaseItem> items = new ArrayList<>();
 
         for (PurchaseItemRequest itemRequest : request.items()) {
+
+            validateProduct(itemRequest.productId());
 
             BigDecimal lineTotal = itemRequest.unitCost()
                     .multiply(BigDecimal.valueOf(
