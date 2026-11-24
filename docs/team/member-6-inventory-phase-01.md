@@ -19,7 +19,7 @@ The original Inventory implementation merged through PR #9 (`968faac`). The foll
 
 ## V6 migration
 
-The [authoritative V6 migration](../../backend/src/main/resources/db/migration/V6__create_inventory_stock_and_stock_movements.sql) is in the active Flyway resource directory. It defines `inventory_stock` and `stock_movements`, including their foreign keys, stock and movement constraints, and history indexes. Hibernate validated the JPA mappings against this schema on disposable PostgreSQL. Shared migration coordination and rollout approval remain pending.
+The [authoritative V6 migration](../../backend/src/main/resources/db/migration/V6__create_inventory_stock_and_stock_movements.sql) is in the active Flyway resource directory. It defines `inventory_stock` and `stock_movements`, including their foreign keys, stock and movement constraints, and history indexes. Hibernate validated the JPA mappings against this schema on disposable PostgreSQL. [Purchase V4](../../backend/src/main/resources/db/migration/V4__create_purchases_and_purchase_items.sql) is also present after integrating main at `c50cf9f`. Shared migration coordination and rollout approval remain pending.
 
 ## Latest verified results
 
@@ -52,7 +52,7 @@ The checkout fixture supplied the Product catalog, acquisition cost, movement re
 | Product and Sales owners | Connect the authoritative Product catalog to checkout and make Inventory usage mandatory. Sales currently accepts Inventory optionally, so checkout can bypass stock validation and deduction when the bean is absent. |
 | Product and Purchase owners | Coordinate Product initialization and backfill, opening balances, reorder-threshold ownership, and authorized Purchase receipt integration. |
 | Sales and return workflow owners | Define return approval, restockability, eligible quantities, and sale void classification before enabling restoration. |
-| Member 1 and migration owners | Resolve the duplicate Catalog and Audit V2 migrations, integrate the missing Purchase migration for full schema validation, and verify the target Flyway history. Coordinate rollout approval and full production application verification. |
+| Member 1 and migration owners | Resolve the duplicate Catalog and Audit V2 migrations and verify the target Flyway history. Coordinate rollout approval and full production application verification. |
 
 ## Historical JDBC work
 
