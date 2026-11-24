@@ -1,5 +1,9 @@
 # Member 6: Inventory & Stock Movements — Phase 01
 
+The JDBC implementation and verification described below are historical. See the current
+[Inventory internal service contract](../api/inventory-service-contract.md) for the JPA
+adapters, PostgreSQL test setup and V6 activation dependency.
+
 Implementation status for review, not approval of shared architecture or production readiness.
 Package: com.bajaj.inventory_backend. Branch: feature/inventory-stock-movements.
 
