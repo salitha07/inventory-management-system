@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import CategoryManagement from "./pages/CategoryManagement";
+
 import MainLayout from "./layouts/MainLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext.jsx";
@@ -18,6 +20,10 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
               <Route path="/" element={<Dashboard />} />
+              <Route
+                path="/categories"
+                element={<CategoryManagement />}
+              />
             </Route>
           </Route>
         </Routes>
