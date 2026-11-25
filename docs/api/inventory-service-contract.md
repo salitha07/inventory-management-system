@@ -1,10 +1,10 @@
 # Inventory internal service contract — Phase 01
 
-The Java skeleton and mutation core are implemented under com.bajaj.inventory_backend.
-Shared Product/Sales integration and the stock-storage architecture remain pending team
-approval. The JDBC mutation adapter, query adapter and stock initializer are implemented
-but UNWIRED. No Inventory REST endpoints or frontend screens are provided. PostgreSQL integration tests
-exist but have not been executed; database rollback/concurrency are not proven.
+The Inventory core is storage-independent. Spring registers the JPA persistence adapters
+for internal stock reads, movements and initialization. Production InventoryOperations and
+SalesInventoryService registration still requires approved policies and metadata sources.
+V6 is in the active Flyway resource directory. Shared migration coordination and rollout
+approval are pending.
 
 ## Required movement vocabulary and metadata
 
@@ -44,7 +44,7 @@ ManualAdjustmentCommand contains productId, signed nonzero Integer quantityChang
 MovementContext. Return eligibility is delegated to requireApprovedRestockableReturn;
 production approval/restockability/remaining-return-quantity verification is not implemented.
 
-## Read-only query contract and unwired JDBC implementation
+## Read-only query contract
 
 InventoryQueries declares these methods using existing DTOs and Spring Data Page results:
 
@@ -54,11 +54,9 @@ Page<CurrentStockView> searchCurrentStock(Long productId, CurrentStockQuery quer
 Page<StockMovementView> searchStockMovements(StockMovementQuery query, PageQuery page);
 ```
 
-PostgresInventoryQueries implements all three methods using parameterized JDBC SQL,
-including current stock search, Product/low-stock filtering and movement history. It has
-no bean registration or startup SQL. Its database behavior has not been verified. Count
-and page-content reads may observe concurrent changes unless the caller supplies a suitable
-shared snapshot transaction. No HTTP routes are implemented.
+JpaInventoryQueries uses Spring Data JPA projections for balances and Specifications for
+history. Count and page-content reads may observe concurrent changes unless the caller
+supplies a suitable snapshot transaction.
 
 - getCurrentStock requires a positive ID. Missing Product and STOCK_NOT_INITIALIZED are
   distinct failures; known zero quantity is a valid initialized balance. Exception mapping
@@ -77,59 +75,52 @@ shared snapshot transaction. No HTTP routes are implemented.
   inclusive-from/exclusive-to instants. History order is createdAt DESC, movementId DESC.
   An empty history does not establish Product existence or balance initialization.
 
-## Persistence port and implemented unwired JDBC adapter
+## JPA persistence and transactions
 
-InventoryPorts.AtomicStockStore.apply(productId, planner) is one combined balance/ledger
-boundary. MovementWrite is a validated plan, not persisted success. The adapter validates
-Product identity, locks an existing stock row FOR UPDATE, invokes the planner once and
-validates Product/delta/result consistency, updates exactly one balance row and inserts all
-movement metadata using RETURNING. reference_type is limited to the candidate's 64 characters.
+InventoryPorts.AtomicStockStore applies a validated MovementWrite under a REQUIRED write
+transaction. JpaAtomicStockStore flushes pending caller changes, acquires Product
+FOR KEY SHARE, then locks the stock row with PESSIMISTIC_WRITE. It refreshes any managed
+balance under that lock, validates the planned quantity, updates the balance and flushes
+the ledger insert in the same transaction. Product and actor references use scalar IDs
+with foreign keys defined by V6. No association cascades to Product or User.
 
-PostgresAtomicStockStore receives JdbcTemplate and TransactionTemplate, creates no DataSource
-or manager and has no component/bean registration. Its private template uses the supplied
-manager with REQUIRED/write settings without modifying the supplied template. It rejects an
-existing read-only transaction. Errors propagate through the transaction boundary; results
-inside a caller transaction remain provisional until caller commit. Commit outcome may be
-ambiguous, so automatic retry is not implemented.
+A caller using the application JPA transaction manager owns commit and rollback.
+Multi-product callers must lock in a consistent order. The Product lock protects identity,
+while active-state policy and return eligibility still require agreement.
 
-Eventual wiring must use the same DataSource and a manager compatible with caller JPA/Sales.
-A separate JDBC manager would not guarantee atomicity with Sales. Multiple Product locks need
-consistent ordering. Product FOR KEY SHARE protects identity, not Product.active. Production
-policy and source-return locking remain unresolved. No in-memory lock provides cross-process
-safety; existing mocks verify protocol, not PostgreSQL rollback or overselling prevention.
+## Stock initialization
 
-Only Inventory may write quantities or stock movement rows. Database privilege enforcement,
-append-only ledger enforcement and idempotency are not implemented here.
+JpaStockInitializer runs in a REQUIRED write transaction. It flushes pending JPA changes,
+checks Product identity under FOR KEY SHARE and inserts a zero balance with a null
+threshold using PostgreSQL ON CONFLICT DO NOTHING. Repeated initialization preserves
+the balance, threshold and timestamp. Missing Products and uninitialized balances remain
+distinct failures. Product creation and backfill need separate lifecycle agreement.
 
-## Implemented unwired stock initializer
+## V6 Flyway migration and rollout
 
-PostgresStockInitializer.initializeStock(Long productId) validates a positive Product ID,
-verifies Product existence with FOR KEY SHARE, then inserts quantity 0 and null reorder_level
-using ON CONFLICT (product_id) DO NOTHING. The primary key arbitrates concurrent inserts;
-existing quantity, reorder level and updated_at are never reset. It returns INITIALIZED or
-ALREADY_INITIALIZED and throws PRODUCT_NOT_FOUND for a missing Product. Ordinary stock
-mutations still reject uninitialized balances rather than invoking the initializer silently.
-
-The initializer uses injected JdbcTemplate/TransactionTemplate with REQUIRED propagation,
-rejects read-only transactions and remains UNWIRED. Product creation must eventually call
-it after persistence/flush using the same DataSource and compatible transaction manager.
-That lifecycle call is not integrated. Zero initialization creates no movement; nonzero
-opening stock/backfill needs an approved attributed process. Real PostgreSQL initialization
-and concurrent-insert behavior have not been verified. Product active-state policy remains pending.
-
-## Single V6 submission candidate — UNAPPROVED / UNVERIFIED
-
-[Executable SQL candidate](../migrations/V6__create_inventory_stock_and_stock_movements.sql)
+[Executable V6 migration](../../backend/src/main/resources/db/migration/V6__create_inventory_stock_and_stock_movements.sql)
 is the single maintained schema definition. The old .sql.draft is only a superseded pointer.
-The candidate is outside active db/migration and has not been executed or validated against
-PostgreSQL. It requires existing V1 users and Member 2 V2 products before activation.
+Flyway discovers V6 in `classpath:db/migration`. Hibernate schema validation includes
+the Inventory mappings, so startup requires both Inventory tables. Member 1 must coordinate
+rollout after resolving the competing V2 versions and checking the target schema history.
+Purchase V4 is present in the active migration directory after integrating main at
+`c50cf9f`. The duplicate Catalog and Audit V2 versions still block full Flyway startup.
+
+The candidate uses BIGINT identifiers, INTEGER balances and thresholds, and TIMESTAMPTZ
+for the JPA Instant fields. The movement identity uses GENERATED BY DEFAULT AS IDENTITY.
+V6 owns the foreign keys, CHECK constraints, defaults and indexes. Hibernate schema
+validation covers mapped schema compatibility, so database tests also exercise constraints.
+The balance primary key supports exact stock lookup and initialization conflict detection.
+Ledger indexes support product history, global history and reference lookup. Product name
+and code substring search has no dedicated Inventory index. Index selection depends on
+the query and data distribution.
 
 PROPOSED storage: inventory_stock is the sole balance keyed by product_id, with nonnegative
 quantity, nullable nonnegative reorder_level and updated_at. stock_movements contains all
 required metadata, canonical type/sign checks, nonnegative after/valid prior-balance checks,
 restrictive Product/user FKs and history/reference indexes. At most one balance is enforced;
-initializer lifecycle integration/backfill must be separately coordinated. No automatic opening-stock insert is
-included. Do not rewrite applied V2 or activate V6 on the current V1-only branch.
+initializer lifecycle integration and backfill need separate coordination. The candidate
+does not insert opening stock.
 
 ## Sales compatibility and remaining dependencies
 
@@ -141,13 +132,28 @@ Inventory-owned contracts awaiting integration agreement.
 | Sales declaration | Coordination needed |
 | --- | --- |
 | isStockAvailable(Long,Integer), getAvailableStock(Long), validateStockAvailability(Long,Integer) | Availability is not reservation; agree read mapping |
-| void deductStock(Long,Integer,StockMovementType,Long) | Reconcile canonical types and command metadata/result |
+| void deductStock(Long,Integer,StockMovementType,Long) | `SALE` maps to `SALE_DEDUCT` with reference type `SALE` and the saved sale ID. Production reason still needs agreement. |
 | void restoreStock(Long,Integer,StockMovementType,Long) | Distinguish customer return from sale void |
 | BigDecimal getCurrentUnitCost(Long) | Agree owner/source with Member 2; costPrice is a candidate |
 
 Four-argument calls lack explicit reason/referenceType/actor. Sales's optional Inventory
-injection can bypass stock operations; production integration must address that. No adapter
-or silent metadata defaults are introduced. Sales's seeded catalogue must map to real IDs.
+injection can bypass stock operations. The compatibility adapter remains unregistered
+pending approved collaborators and metadata. Sales's seeded catalogue must map to real IDs.
+
+For Sales checkout deduction, `SalesStockActorResolver` reads the authenticated UserDetails
+from Spring Security, resolves its email through UserRepository and requires an active
+persisted account. The current account role and authenticated authority must agree.
+The documented checkout roles are CASHIER, MANAGER and ADMIN. The adapter rejects a
+movement context whose actor differs from the resolved user or whose reference ID differs
+from the sale ID. This checkout check grants no permissions for receipts, adjustments,
+returns or voids and does not implement the general OperationPolicy.
+
+The checkout caller uses availability validation, acquisition-cost lookup and deduction.
+The cost source and deduction reason still require agreement before
+registering the service. Restoration remains unavailable until approved return eligibility
+and void classification are defined. The purchase contract requires a purchase reference
+and describes its role list as proposed. Manual adjustment still needs an approved role
+and reference policy. InventoryQueries and JpaStockInitializer remain internal JPA beans.
 
 Member 1: version/activation, shared errors, principal/permissions and integration order.
 Member 2: dedicated balance/threshold ownership, Product initialization, opening data and
@@ -158,10 +164,24 @@ reference pairs cannot safely be assumed unique for partial/multi-line operation
 
 ## Verification scope
 
-Existing evidence: Java 21 Maven compilation succeeded; 33 database-free Inventory tests
-passed and eight opt-in PostgreSQL tests were skipped. The tests cover core invariants,
-metadata, mutation-adapter protocol/failure handling and restrictive test cleanup. Subsequent
-Java 21 compilation of PostgresInventoryQueries and PostgresStockInitializer passed with the
-same existing test counts. Those tests do not directly verify the query adapter or initializer.
-No real PostgreSQL tests, production migration checks or JPA/Sales transaction integration
-have been executed. Test setup is documented separately in the team harness guide.
+JpaInventoryPostgresTest and SalesCheckoutPostgresTest are opt-in using
+INVENTORY_TEST_POSTGRES_PORT. Point them only at
+a newly initialized disposable loopback PostgreSQL cluster. Use the database and role
+inventory_jpa_test and test-only trust authentication within that cluster. Apply the Users
+V1, catalog V2, Sales V5 and V5_1, and Inventory V6 scripts from
+`backend/src/main/resources/db/migration` to the disposable database, then insert a category
+named Inventory fixture. Run the Inventory tests with Java 21 and Maven, then stop the
+temporary server. These test contexts validate their mapped schemas and use a disposable
+database.
+
+The isolated PostgreSQL 18.4 run passed 37 Inventory tests, including five checkout
+integration tests. The checkout tests use the Spring-proxied SalesService, real Sales and
+Inventory repositories and a shared JPA transaction manager. They verified committed sale
+items and cost snapshots, sale-linked movements with the authenticated creator, insufficient
+stock rejection, and two checkouts that both passed preflight but could commit only one sale
+for the last unit. A forced failure on the second deduction rolled back the sale, sale items,
+earlier balance update and earlier ledger insert.
+
+The checkout fixture supplies the catalog, acquisition cost, movement reason and operation
+policy for tests only. The run does not establish production bean registration, authorization
+through the HTTP filter chain, full Flyway startup or rollout readiness.
