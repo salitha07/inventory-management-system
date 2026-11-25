@@ -1,7 +1,9 @@
+
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import CategoryManagement from "./pages/CategoryManagement";
 
 import UserManagement from "./pages/users/UserManagement";
 import AuditLogs from "./pages/audit/AuditLogs";
@@ -16,36 +18,42 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext.jsx";
 
 function App() {
-    return (
-        <AuthProvider>
-            <BrowserRouter>
-                <Routes>
-                    {/* Public Routes */}
-                    <Route path="/login" element={<Login />} />
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<Login />} />
 
-                    {/* Protected Routes */}
-                    <Route element={<ProtectedRoute />}>
-                        <Route element={<MainLayout />}>
-                            {/* Dashboard */}
-                            <Route path="/" element={<Dashboard />} />
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<MainLayout />}>
+              {/* Dashboard */}
+              <Route path="/" element={<Dashboard />} />
 
-                            {/* User Management */}
-                            <Route path="/users" element={<UserManagement />} />
+              {/* Category Management */}
+              <Route
+                path="/categories"
+                element={<CategoryManagement />}
+              />
 
-                            {/* Audit Logs */}
-                            <Route path="/audit-logs" element={<AuditLogs />} />
+              {/* User Management */}
+              <Route path="/users" element={<UserManagement />} />
 
-                            {/* Sales Management */}
-                            <Route path="/sales" element={<SalesManagement />} />
-                            <Route path="/sales/pos" element={<POS />} />
-                            <Route path="/sales/history" element={<SalesHistory />} />
-                            <Route path="/sales/invoice/:id" element={<Invoice />} />
-                        </Route>
-                    </Route>
-                </Routes>
-            </BrowserRouter>
-        </AuthProvider>
-    );
+              {/* Audit Logs */}
+              <Route path="/audit-logs" element={<AuditLogs />} />
+
+              {/* Sales Management */}
+              <Route path="/sales" element={<SalesManagement />} />
+              <Route path="/sales/pos" element={<POS />} />
+              <Route path="/sales/history" element={<SalesHistory />} />
+              <Route path="/sales/invoice/:id" element={<Invoice />} />
+            </Route>
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
 
 export default App;
