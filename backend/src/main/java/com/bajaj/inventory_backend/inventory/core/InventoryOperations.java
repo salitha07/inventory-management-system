@@ -51,10 +51,16 @@ public final class InventoryOperations {
         });
     }
 
-    /** Core-local failure; mapping to Member 5's shared exception remains pending. */
     public static final class InsufficientStock extends IllegalArgumentException {
+        private final int available;
+
         public InsufficientStock(Long productId, int available, int requested) {
             super("Insufficient stock for product " + productId + ": available=" + available + ", requested=" + requested);
+            this.available = available;
+        }
+
+        public int available() {
+            return available;
         }
     }
 }
