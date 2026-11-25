@@ -4,7 +4,7 @@ import com.bajaj.inventory_backend.inventory.dto.InventoryContracts.*;
 import org.springframework.data.domain.Page;
 
 /**
- * Read-only Phase 01 declarations; no implementation, Spring bean or REST endpoints.
+ * Read-only Phase 01 stock and movement queries.
  * Reads are snapshots and never reserve stock or initialize missing balances.
  */
 public interface InventoryQueries {
