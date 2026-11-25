@@ -1,7 +1,8 @@
+package com.bajaj.inventory_backend.repository;
 
-package com.bajaj.inventory_backend.purchase;
-
+import com.bajaj.inventory_backend.purchase.PurchaseItem;
 import org.springframework.data.jpa.repository.JpaRepository;
+
 import java.util.List;
 
 public interface PurchaseItemRepository
