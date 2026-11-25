@@ -1,8 +1,17 @@
+
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import CategoryManagement from "./pages/CategoryManagement";
+
+import UserManagement from "./pages/users/UserManagement";
+import AuditLogs from "./pages/audit/AuditLogs";
+
+import SalesManagement from "./pages/SalesManagement";
+import POS from "./pages/POS";
+import SalesHistory from "./pages/SalesHistory";
+import Invoice from "./pages/Invoice";
 
 import MainLayout from "./layouts/MainLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -19,11 +28,26 @@ function App() {
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
+              {/* Dashboard */}
               <Route path="/" element={<Dashboard />} />
+
+              {/* Category Management */}
               <Route
                 path="/categories"
                 element={<CategoryManagement />}
               />
+
+              {/* User Management */}
+              <Route path="/users" element={<UserManagement />} />
+
+              {/* Audit Logs */}
+              <Route path="/audit-logs" element={<AuditLogs />} />
+
+              {/* Sales Management */}
+              <Route path="/sales" element={<SalesManagement />} />
+              <Route path="/sales/pos" element={<POS />} />
+              <Route path="/sales/history" element={<SalesHistory />} />
+              <Route path="/sales/invoice/:id" element={<Invoice />} />
             </Route>
           </Route>
         </Routes>

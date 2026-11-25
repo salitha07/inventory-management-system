@@ -1,0 +1,4 @@
+﻿-- SUPERSEDED REVIEW POINTER ONLY — no schema definition is maintained here.
+-- The single executable definition is:
+-- backend/src/main/resources/db/migration/V6__create_inventory_stock_and_stock_movements.sql
+-- Flyway discovers V6 there. Shared migration coordination and rollout approval are pending.
