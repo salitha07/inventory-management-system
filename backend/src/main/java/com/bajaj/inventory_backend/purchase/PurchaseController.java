@@ -24,13 +24,16 @@ public class PurchaseController {
 
     private final PurchaseService purchaseService;
     private final UserRepository userRepository;
+    private final PurchaseReceivingService purchaseReceivingService;
 
     public PurchaseController(
             PurchaseService purchaseService,
-            UserRepository userRepository
+            UserRepository userRepository,
+            PurchaseReceivingService purchaseReceivingService
     ) {
         this.purchaseService = purchaseService;
         this.userRepository = userRepository;
+        this.purchaseReceivingService = purchaseReceivingService;
     }
 
     @GetMapping
@@ -95,6 +98,7 @@ public class PurchaseController {
         String email = authentication.getName();
 
         User user = userRepository.findByEmail(email)
+                .filter(User::isActive)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
                         "Authenticated user not found"
@@ -113,5 +117,14 @@ public class PurchaseController {
     ) {
 
         return purchaseService.cancelPurchase(id);
+    }
+
+    @PostMapping("/{id}/receive")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public PurchaseResponse receivePurchase(
+            @PathVariable Long id
+    ) {
+
+        return purchaseReceivingService.receivePurchase(id);
     }
 }
